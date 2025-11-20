@@ -22,7 +22,7 @@
   "license": "MIT",
   "dependencies": {
     "chalk": "^5.3.0",
-    "table": "^6.8.1"
+    "blessed": "^0.1.81"
   },
   "devDependencies": {
     "@types/node": "^20.10.6",
