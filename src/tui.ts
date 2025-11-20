@@ -58,7 +58,7 @@ export class DiffTUI {
       parent: this.screen,
       top: 3,
       left: 0,
-      width: 25,
+      width: '20%',
       bottom: 1,
       scrollable: true,
       mouse: true,
@@ -73,7 +73,7 @@ export class DiffTUI {
       border: 'right',
       padding: {
         left: 1,
-        right: 0,
+        right: 1,
       },
       tags: true,
     });
@@ -82,7 +82,7 @@ export class DiffTUI {
     this.contentBox = blessed.box({
       parent: this.screen,
       top: 3,
-      left: 25,
+      left: '20%',
       right: 0,
       bottom: 1,
       scrollable: true,
@@ -196,28 +196,24 @@ export class DiffTUI {
         renamed: '➜',
       };
 
-      // Truncate filename to fit in sidebar
-      const maxFileNameLen = 15;
-      let displayName = fileName;
-      if (displayName.length > maxFileNameLen) {
-        displayName = displayName.substring(0, maxFileNameLen - 1) + '…';
+      // Build the line
+      let line = isActive ? '{inverse}' : '';
+      line += `${statusIcon[file.status]} `;
+      
+      // Truncate filename to fit
+      const maxLen = 12;
+      if (fileName.length > maxLen) {
+        line += fileName.substring(0, maxLen - 1) + '…';
+      } else {
+        line += fileName;
       }
-
-      let line = '';
-      if (isActive) {
-        line = '{inverse}';
-      }
-
-      line += `${statusIcon[file.status]} ${displayName}`;
 
       if (isActive) {
         line += '{/inverse}';
       }
 
       content += line + '\n';
-      
-      // Add stats on next line, slightly indented
-      content += `  {blue}+${addCount} -${removeCount}{/blue}\n`;
+      content += `  {blue}+${addCount}{/blue} {red}-${removeCount}{/red}\n`;
     }
 
     this.sidebarBox.setContent(parseMarkup(content));
@@ -248,7 +244,7 @@ export class DiffTUI {
 
     // Calculate column width early
     const terminalWidth = this.screen.width || 120;
-    const sidebarWidth = 25;
+    const sidebarWidth = Math.floor(terminalWidth * 0.2); // 20% for sidebar
     const padding = 2; // left + right padding on content box
     const separatorWidth = 3; // " │ "
     const availableWidth = Math.max(50, terminalWidth - sidebarWidth - padding - separatorWidth);
