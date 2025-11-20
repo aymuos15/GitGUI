@@ -609,12 +609,12 @@ func (m model) View() string {
 
 // renderStatsView renders the stats view (git diff --stat style)
 func (m model) renderStatsView() string {
-	var output strings.Builder
+	var boxContent strings.Builder
 
 	// Title
 	title := titleStyle.Render("Diff Statistics")
-	output.WriteString(lipgloss.PlaceHorizontal(m.width, lipgloss.Center, title))
-	output.WriteString("\n\n")
+	boxContent.WriteString(lipgloss.PlaceHorizontal(100, lipgloss.Center, title))
+	boxContent.WriteString("\n\n")
 
 	// Calculate totals
 	totalAdditions := 0
@@ -661,17 +661,17 @@ func (m model) renderStatsView() string {
 				lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(additions),
 				lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(deletions),
 				greenBar+redBar)
-			output.WriteString(line)
-			output.WriteString("\n")
+			boxContent.WriteString(line)
+			boxContent.WriteString("\n")
 		} else {
 			line := fmt.Sprintf(" %-50s | %s %s", fileName, additions, deletions)
-			output.WriteString(line)
-			output.WriteString("\n")
+			boxContent.WriteString(line)
+			boxContent.WriteString("\n")
 		}
 	}
 
 	// Summary line
-	output.WriteString("\n")
+	boxContent.WriteString("\n")
 	fileCount := len(m.files)
 	fileWord := "file"
 	if fileCount != 1 {
@@ -683,14 +683,30 @@ func (m model) renderStatsView() string {
 		lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(fmt.Sprintf("%d insertions(+)", totalAdditions)),
 		lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(fmt.Sprintf("%d deletions(-)", totalDeletions)))
 
-	output.WriteString(summary)
-	output.WriteString("\n\n")
+	boxContent.WriteString(summary)
 
-	// Help text
-	help := helpStyle.Render("Press 's' to return to diff view | q:quit")
-	output.WriteString(lipgloss.PlaceHorizontal(m.width, lipgloss.Center, help))
+	// Create a box around the content
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("12")).
+		Padding(1, 2).
+		Width(100)
 
-	return output.String()
+	box := boxStyle.Render(boxContent.String())
+
+	// Center the box vertically and horizontally
+	centeredBox := lipgloss.Place(
+		m.width,
+		m.height-1, // Leave space for help at bottom
+		lipgloss.Center,
+		lipgloss.Center,
+		box,
+	)
+
+	// Help text at the bottom
+	help := helpStyle.Render("↑↓:scroll h/l:file 1-9:jump s:stats q:quit")
+
+	return centeredBox + "\n" + help
 }
 
 func parseDiffIntoFiles(lines []string) []fileDiff {
