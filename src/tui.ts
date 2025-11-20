@@ -163,13 +163,13 @@ export class DiffTUI {
   private renderHeader() {
     const summary = this.diffResult.summary;
     const file = this.files[this.currentFileIndex];
-    const path = file ? (file.newPath || file.oldPath) : 'N/A';
+    const path = file ? (file.newPath || file.oldPath || 'Unknown') : 'N/A';
 
-    let header = '\x1b[1m📊 Git Diff Viewer\x1b[0m\n';
-    header += `${summary.filesChanged} file${summary.filesChanged !== 1 ? 's' : ''} changed  •  `;
-    header += `\x1b[32m+${summary.insertions}\x1b[0m  `;
-    header += `\x1b[31m-${summary.deletions}\x1b[0m\n\n`;
-    header += `\x1b[1mCurrent:\x1b[0m \x1b[34m${path}\x1b[0m`;
+    let header = '\x1b[1mGit Diff Viewer\x1b[0m\n';
+    header += `${summary.filesChanged || 0} file${summary.filesChanged !== 1 ? 's' : ''} changed  `;
+    header += `\x1b[32m+${summary.insertions || 0}\x1b[0m  `;
+    header += `\x1b[31m-${summary.deletions || 0}\x1b[0m\n`;
+    header += `\x1b[1mCurrent:\x1b[0m ${path}`;
 
     this.headerBox.setContent(header);
   }
