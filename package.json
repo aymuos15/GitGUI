@@ -8,7 +8,7 @@
     "diffview": "dist/index.js"
   },
   "scripts": {
-    "build": "bun build src/index.ts --outdir dist --target bun",
+    "build": "bun build src/index.ts --outdir dist --target bun --sourcemap=none",
     "dev": "bun run src/index.ts",
     "start": "bun dist/index.js"
   },
