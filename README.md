@@ -21,6 +21,16 @@ A beautiful terminal UI for viewing git diffs, built with Charmbracelet tools.
 go build -o diffview
 ```
 
+### After Making Code Changes
+
+After modifying the source code, rebuild and install the binary to your PATH with:
+
+```bash
+make install
+```
+
+This ensures your changes are compiled and available when you run `dif`. Skipping this step will result in running the old binary from cache.
+
 ## Usage
 
 View current git diff:

@@ -212,8 +212,8 @@ func RenderDiffView(m *models.Model) string {
 		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
 
 		// Render help bar
-		helpText := "l:log q:quit"
-		help := RenderHelpBar(helpText, m.Width)
+		rightHelp := "l:log q:quit"
+		help := RenderHelpBarSplit("", rightHelp, m.Width)
 
 		return content + "\n" + help
 	}
@@ -313,9 +313,10 @@ func RenderDiffView(m *models.Model) string {
 
 	content := strings.Join(mainContent, "\n")
 
-	// Render help bar with tab-styled items
-	helpText := "↑↓:scroll h/←→:file 1-9:jump s:stats l:log q:quit"
-	help := RenderHelpBar(helpText, m.Width)
+	// Render help bar with left and right sections
+	leftHelp := "↑↓:scroll h/←→:file 1-9:jump"
+	rightHelp := "s:stats l:log q:quit"
+	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return fmt.Sprintf("%s\n%s", content, help)
 }
@@ -344,6 +345,61 @@ func RenderHelpBar(helpText string, width int) string {
 	}
 
 	return helpBar
+}
+
+// RenderHelpBarSplit renders help items with left and right sections
+func RenderHelpBarSplit(leftText string, rightText string, width int) string {
+	// Render left section
+	var leftBar string
+	var leftWidth int
+
+	if leftText != "" {
+		leftItems := strings.Fields(leftText)
+		var styledLeftItems []string
+		for i, item := range leftItems {
+			styleIndex := i % len(styles.HelpItemStyles)
+			styledLeftItems = append(styledLeftItems, styles.HelpItemStyles[styleIndex].Render(item))
+		}
+		leftBar = lipgloss.JoinHorizontal(lipgloss.Top, styledLeftItems...)
+		leftWidth = lipgloss.Width(leftBar)
+	}
+
+	// Render right section
+	var rightBar string
+	var rightWidth int
+
+	if rightText != "" {
+		rightItems := strings.Fields(rightText)
+		var styledRightItems []string
+		for i, item := range rightItems {
+			styleIndex := i % len(styles.HelpItemStyles)
+			styledRightItems = append(styledRightItems, styles.HelpItemStyles[styleIndex].Render(item))
+		}
+		rightBar = lipgloss.JoinHorizontal(lipgloss.Top, styledRightItems...)
+		rightWidth = lipgloss.Width(rightBar)
+	}
+
+	// Calculate gap size
+	totalUsed := leftWidth + rightWidth
+	gapSize := width - totalUsed
+	if gapSize < 0 {
+		gapSize = 0
+	}
+
+	// Create gap with background style
+	gap := styles.HelpGapStyle.Render(strings.Repeat(" ", gapSize))
+
+	// Combine left, gap, and right
+	result := leftBar + gap + rightBar
+
+	// If still shorter than width, pad the end
+	resultWidth := lipgloss.Width(result)
+	if resultWidth < width {
+		padding := styles.HelpGapStyle.Render(strings.Repeat(" ", width-resultWidth))
+		result = result + padding
+	}
+
+	return result
 }
 
 // RenderSidebar renders a static sidebar with stats and helper info
@@ -381,10 +437,6 @@ func RenderSidebar(m *models.Model, sidebarWidth int) string {
 		currentFile := fmt.Sprintf("\nFile: %s\n+%d -%d", utils.Truncate(file.Name, sidebarWidth-4), file.Additions, file.Deletions)
 		sections = append(sections, currentFile)
 	}
-
-	// Helper section
-	helper := fmt.Sprintf("\nHelpers:\ns:stats l:log\nq:quit d:diff")
-	sections = append(sections, helper)
 
 	content := strings.Join(sections, "\n")
 	content = utils.PadRight(content, sidebarWidth-2)

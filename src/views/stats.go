@@ -97,8 +97,8 @@ func RenderStatsView(m *models.Model) string {
 		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
 
 		// Render help bar
-		helpText := "l:log q:quit"
-		help := RenderHelpBar(helpText, m.Width)
+		rightHelp := "l:log q:quit"
+		help := RenderHelpBarSplit("", rightHelp, m.Width)
 
 		return content + "\n" + help
 	}
@@ -112,9 +112,9 @@ func RenderStatsView(m *models.Model) string {
 		m.StatsTable.View(),
 	)
 
-	// Render help bar with tab-styled items
-	helpText := "d:diff s:stats l:log q:quit"
-	help := RenderHelpBar(helpText, m.Width)
+	// Render help bar with left and right sections
+	rightHelp := "d:diff s:stats l:log q:quit"
+	help := RenderHelpBarSplit("", rightHelp, m.Width)
 
 	return centeredContent + "\n" + help
 }

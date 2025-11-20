@@ -122,9 +122,10 @@ func RenderLogView(m *models.Model) string {
 		m.LogTable.View(),
 	)
 
-	// Render help bar with tab-styled items at the bottom left
-	helpText := "↑↓:scroll d:diff s:stats l:log q:quit"
-	help := RenderHelpBar(helpText, m.Width)
+	// Render help bar with left and right sections
+	leftHelp := "↑↓:scroll"
+	rightHelp := "d:diff s:stats l:log q:quit"
+	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return centeredContent + "\n" + help
 }
