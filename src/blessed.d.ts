@@ -38,6 +38,7 @@ declare module 'blessed' {
     border?: string;
     style?: any;
     padding?: any;
+    tags?: boolean;
   }
 
   function screen(options: ScreenOptions): Screen;

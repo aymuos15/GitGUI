@@ -1,5 +1,6 @@
 import blessed from 'blessed';
 import { FileDiff, DiffResult } from './parser.js';
+import { parseMarkup } from './colors.js';
 
 export class DiffTUI {
   private screen: any;
@@ -47,6 +48,7 @@ export class DiffTUI {
         },
       },
       border: 'bottom',
+      tags: true,
     });
 
     // Sidebar with file list
@@ -71,6 +73,7 @@ export class DiffTUI {
         left: 1,
         right: 1,
       },
+      tags: true,
     });
 
     // Main content area
@@ -93,6 +96,7 @@ export class DiffTUI {
         left: 2,
         right: 2,
       },
+      tags: true,
     });
 
     // Footer with help text
@@ -110,6 +114,7 @@ export class DiffTUI {
         bg: 'black',
         fg: 'white',
       },
+      tags: true,
     });
 
     this.setupKeyBindings();
@@ -164,7 +169,7 @@ export class DiffTUI {
     header += `{red}-${summary.deletions}{/red}\n\n`;
     header += `{bold}Current:{/bold} {blue}${path}{/blue}`;
 
-    this.headerBox.setContent(header);
+    this.headerBox.setContent(parseMarkup(header));
   }
 
   private renderSidebar() {
@@ -192,20 +197,20 @@ export class DiffTUI {
 
       let line = '';
       if (isActive) {
-        line = '{black bg-cyan}';
+        line = '{inverse}';
       }
 
       line += ` ${statusIcon[file.status]} ${fileName}`;
       line += ` {blue}(+${addCount},-${removeCount}){/blue}`;
 
       if (isActive) {
-        line += '{/black}';
+        line += '{/inverse}';
       }
 
       content += line + '\n';
     }
 
-    this.sidebarBox.setContent(content);
+    this.sidebarBox.setContent(parseMarkup(content));
   }
 
   private renderContent() {
@@ -283,7 +288,7 @@ export class DiffTUI {
       content += '\n';
     }
 
-    this.contentBox.setContent(content);
+    this.contentBox.setContent(parseMarkup(content));
   }
 
   private formatLine(
@@ -328,7 +333,7 @@ export class DiffTUI {
     footer += '                                          ';
     footer += `File ${current}/${total}`;
 
-    this.footerBox.setContent(footer);
+    this.footerBox.setContent(parseMarkup(footer));
   }
 
   private showHelp() {
@@ -372,7 +377,7 @@ export class DiffTUI {
 
 Press any key to close`;
 
-    helpBox.setContent(helpText);
+    helpBox.setContent(parseMarkup(helpText));
     this.screen.render();
 
     this.screen.once('key', () => {
