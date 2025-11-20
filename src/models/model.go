@@ -68,18 +68,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Calculate viewport height: total - tabs (always shown) - help line
 		viewportHeight := msg.Height - 2 // 1 for tabs, 1 for help
 
-		// Layout: left side for diff (60%), right sidebar (40%)
-		sidebarWidth := int(float64(msg.Width) * 0.4)
-		diffWidth := msg.Width - sidebarWidth - 1 // 1 for divider
+		// Full width split 50/50 between left and right columns
+		leftColWidth := (msg.Width - 1) / 2             // Left column (accounting for center divider)
+		rightColWidth := (msg.Width - 1) - leftColWidth // Right column gets remaining space
 
 		if !m.Ready {
-			m.LeftViewport = viewport.New(diffWidth, viewportHeight)
-			m.RightViewport = viewport.New(diffWidth, viewportHeight)
+			m.LeftViewport = viewport.New(leftColWidth, viewportHeight)
+			m.RightViewport = viewport.New(rightColWidth, viewportHeight)
 			m.LogViewport = viewport.New(msg.Width, viewportHeight)
 			m.Ready = true
 		} else {
-			m.LeftViewport.Width = diffWidth
-			m.RightViewport.Width = diffWidth
+			m.LeftViewport.Width = leftColWidth
+			m.RightViewport.Width = rightColWidth
 			m.LeftViewport.Height = viewportHeight
 			m.RightViewport.Height = viewportHeight
 			m.LogViewport.Width = msg.Width

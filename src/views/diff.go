@@ -20,11 +20,14 @@ func UpdateContent(m *models.Model) {
 
 	content := m.Files[m.ActiveTab].Content
 
-	// Calculate column width based on new layout
-	sidebarWidth := int(float64(m.Width) * 0.4)
-	diffWidth := m.Width - sidebarWidth - 1 // 1 for divider
-	colWidth := diffWidth/2 - 8             // Account for line numbers (6 chars + space)
-	fullWidth := diffWidth - 1              // Full width minus divider
+	// Use the actual viewport widths (set in model.go)
+	leftColWidth := m.LeftViewport.Width
+	rightColWidth := m.RightViewport.Width
+	leftContentWidth := leftColWidth - 6  // -6 for line numbers ("12345 ")
+	rightContentWidth := rightColWidth - 6 // -6 for line numbers ("12345 ")
+
+	// Calculate full width for headers (full screen width minus center divider)
+	fullWidth := m.Width - 1
 
 	var leftLines, rightLines []string
 
@@ -32,7 +35,7 @@ func UpdateContent(m *models.Model) {
 	m.RightLineNum = 0
 
 	for lineIdx, line := range content {
-		left, right, isFullWidth, skip := formatLine(m, line, colWidth, fullWidth, lineIdx)
+		left, right, isFullWidth, skip := formatLineWithWidths(m, line, leftContentWidth, rightContentWidth, fullWidth, lineIdx)
 		if skip {
 			// Skip this line entirely
 			continue
@@ -51,8 +54,8 @@ func UpdateContent(m *models.Model) {
 	m.RightViewport.SetContent(strings.Join(rightLines, "\n"))
 }
 
-// formatLine formats a single diff line for display
-func formatLine(m *models.Model, line string, width int, fullWidth int, lineIdx int) (string, string, bool, bool) {
+// formatLineWithWidths formats a single diff line for display with separate left/right widths
+func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidth int, fullWidth int, lineIdx int) (string, string, bool, bool) {
 	if len(line) == 0 {
 		return "", "", false, false
 	}
@@ -109,9 +112,9 @@ func formatLine(m *models.Model, line string, width int, fullWidth int, lineIdx 
 
 		// Truncate if needed
 		visibleLen := len(utils.StripAnsi(highlighted))
-		if visibleLen > width {
+		if visibleLen > leftWidth {
 			// Truncate the original text and re-highlight
-			text = text[:width-3] + "..."
+			text = text[:leftWidth-3] + "..."
 			highlighted = highlighting.HighlightCode(text, fileRef, lineIdx)
 		}
 
@@ -120,7 +123,7 @@ func formatLine(m *models.Model, line string, width int, fullWidth int, lineIdx 
 		resetBg := "\x1b[49m"
 
 		// Pad to width
-		padding := width - visibleLen
+		padding := leftWidth - visibleLen
 		if padding < 0 {
 			padding = 0
 		}
@@ -128,9 +131,9 @@ func formatLine(m *models.Model, line string, width int, fullWidth int, lineIdx 
 		lineNum := fmt.Sprintf("%5d ", m.LeftLineNum)
 		left := styles.LineNumBgLeft.Render(lineNum) + bgCode + highlighted + strings.Repeat(" ", padding) + resetBg
 
-		// Right side empty with neutral background
+		// Right side empty with neutral background, padded to rightWidth
 		emptyStyle := styles.NeutralStyle
-		right := "      " + emptyStyle.Render("")
+		right := "      " + emptyStyle.Render(strings.Repeat(" ", rightWidth))
 		m.LeftLineNum++
 		return left, right, false, false
 	}
@@ -144,9 +147,9 @@ func formatLine(m *models.Model, line string, width int, fullWidth int, lineIdx 
 
 		// Truncate if needed
 		visibleLen := len(utils.StripAnsi(highlighted))
-		if visibleLen > width {
+		if visibleLen > rightWidth {
 			// Truncate the original text and re-highlight
-			text = text[:width-3] + "..."
+			text = text[:rightWidth-3] + "..."
 			highlighted = highlighting.HighlightCode(text, fileRef, lineIdx)
 		}
 
@@ -155,35 +158,43 @@ func formatLine(m *models.Model, line string, width int, fullWidth int, lineIdx 
 		resetBg := "\x1b[49m"
 
 		// Pad to width
-		padding := width - visibleLen
+		padding := rightWidth - visibleLen
 		if padding < 0 {
 			padding = 0
 		}
 
 		lineNum := fmt.Sprintf("%5d ", m.RightLineNum)
 
-		// Left side empty with neutral background
+		// Left side empty with neutral background, padded to leftWidth
 		emptyStyle := styles.NeutralStyle
-		left := "      " + emptyStyle.Render("")
+		left := "      " + emptyStyle.Render(strings.Repeat(" ", leftWidth))
 		right := styles.LineNumBgRight.Render(lineNum) + bgCode + highlighted + strings.Repeat(" ", padding) + resetBg
 		m.RightLineNum++
 		return left, right, false, false
 	}
 
 	// Context line - show on both sides with syntax highlighting
-	highlighted := highlighting.HighlightCode(line, fileRef, lineIdx)
+	leftHighlighted := highlighting.HighlightCode(line, fileRef, lineIdx)
+	rightHighlighted := highlighting.HighlightCode(line, fileRef, lineIdx)
 
-	// Truncate if needed
-	visibleLen := len(utils.StripAnsi(highlighted))
-	if visibleLen > width {
-		line = line[:width-3] + "..."
-		highlighted = highlighting.HighlightCode(line, fileRef, lineIdx)
+	// Truncate if needed for left side
+	leftVisibleLen := len(utils.StripAnsi(leftHighlighted))
+	if leftVisibleLen > leftWidth {
+		leftLine := line[:leftWidth-3] + "..."
+		leftHighlighted = highlighting.HighlightCode(leftLine, fileRef, lineIdx)
+	}
+
+	// Truncate if needed for right side
+	rightVisibleLen := len(utils.StripAnsi(rightHighlighted))
+	if rightVisibleLen > rightWidth {
+		rightLine := line[:rightWidth-3] + "..."
+		rightHighlighted = highlighting.HighlightCode(rightLine, fileRef, lineIdx)
 	}
 
 	leftNum := fmt.Sprintf("%5d ", m.LeftLineNum)
 	rightNum := fmt.Sprintf("%5d ", m.RightLineNum)
-	left := styles.LineNumStyle.Render(leftNum) + styles.NeutralStyle.Render(utils.PadRight(highlighted, width))
-	right := styles.LineNumStyle.Render(rightNum) + styles.NeutralStyle.Render(utils.PadRight(highlighted, width))
+	left := styles.LineNumStyle.Render(leftNum) + styles.NeutralStyle.Render(utils.PadRight(leftHighlighted, leftWidth))
+	right := styles.LineNumStyle.Render(rightNum) + styles.NeutralStyle.Render(utils.PadRight(rightHighlighted, rightWidth))
 	m.LeftLineNum++
 	m.RightLineNum++
 	return left, right, false, false
@@ -194,10 +205,6 @@ func RenderDiffView(m *models.Model) string {
 	if !m.Ready {
 		return "Loading..."
 	}
-
-	// Calculate sidebar width
-	sidebarWidth := int(float64(m.Width) * 0.4)
-	diffWidth := m.Width - sidebarWidth - 1 // 1 for divider
 
 	// Render tabs (always show, spanning full width)
 	var tabBar string
@@ -229,7 +236,7 @@ func RenderDiffView(m *models.Model) string {
 			Foreground(lipgloss.Color("240")).
 			Bold(true).
 			Align(lipgloss.Center).
-			Width(diffWidth)
+			Width(m.Width)
 
 		// Center vertically (account for tab bar taking 1 line)
 		verticalPadding := (m.Height - 3) / 2
@@ -276,36 +283,7 @@ func RenderDiffView(m *models.Model) string {
 	}
 
 	// Build diff content
-	diffContent := strings.Join(combined, "\n")
-
-	// Render sidebar
-	sidebar := RenderSidebar(m, sidebarWidth)
-
-	// Combine diff and sidebar horizontally (line by line)
-	diffLines := strings.Split(diffContent, "\n")
-	sidebarLines := strings.Split(sidebar, "\n")
-
-	var bodyContent []string
-	maxBodyLines := len(diffLines)
-	if len(sidebarLines) > maxBodyLines {
-		maxBodyLines = len(sidebarLines)
-	}
-
-	for i := 0; i < maxBodyLines; i++ {
-		left := ""
-		right := ""
-		if i < len(diffLines) {
-			left = diffLines[i]
-		}
-		if i < len(sidebarLines) {
-			right = sidebarLines[i]
-		}
-		bodyContent = append(bodyContent, left+right)
-	}
-
-	// Assemble final output: tabs + body + help
-	// Tab bar already spans full width, just add it on its own line
-	body := strings.Join(bodyContent, "\n")
+	body := strings.Join(combined, "\n")
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll h/←→:file 1-9:jump"
