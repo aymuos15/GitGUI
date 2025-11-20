@@ -49,50 +49,78 @@ type diffLine struct {
 }
 
 type fileDiff struct {
-	name    string
-	content []string
+	name           string
+	content        []string
+	highlightCache map[int]string   // Cache: line index -> highlighted line
+	lexer          chroma.Lexer     // Cached lexer for this file type
+	style          *chroma.Style    // Cached style
+	formatter      chroma.Formatter // Cached formatter
 }
 
-// highlightCode applies syntax highlighting to a line of code
-func highlightCode(code string, filename string) string {
+// initSyntaxHighlighting initializes the lexer, style, and formatter for a file
+func (f *fileDiff) initSyntaxHighlighting() {
+	if f.lexer != nil {
+		return // Already initialized
+	}
+
 	// Get lexer based on file extension
-	ext := filepath.Ext(filename)
-	lexer := lexers.Get(ext)
+	ext := filepath.Ext(f.name)
+	f.lexer = lexers.Get(ext)
 
-	// Fallback to analyzing the content if no lexer found
-	if lexer == nil {
-		lexer = lexers.Analyse(code)
+	if f.lexer == nil {
+		f.lexer = lexers.Fallback
 	}
 
-	// Fallback to plaintext if still no lexer
-	if lexer == nil {
-		lexer = lexers.Fallback
+	f.lexer = chroma.Coalesce(f.lexer)
+
+	// Cache style and formatter
+	f.style = styles.Get("monokai")
+	if f.style == nil {
+		f.style = styles.Fallback
 	}
 
-	lexer = chroma.Coalesce(lexer)
+	f.formatter = formatters.TTY16m
+	f.highlightCache = make(map[int]string)
+}
 
-	// Use a dark style that works well in terminals
-	style := styles.Get("monokai")
-	if style == nil {
-		style = styles.Fallback
+// highlightLine highlights a single line using cached lexer/style/formatter
+func (f *fileDiff) highlightLine(lineIdx int, code string) string {
+	// Check cache first
+	if cached, exists := f.highlightCache[lineIdx]; exists {
+		return cached
 	}
 
-	// Create a custom formatter that outputs ANSI color codes
-	formatter := formatters.TTY16m
+	// Ensure lexer is initialized
+	f.initSyntaxHighlighting()
 
 	// Tokenize and format
-	iterator, err := lexer.Tokenise(nil, code)
+	iterator, err := f.lexer.Tokenise(nil, code)
 	if err != nil {
 		return code
 	}
 
 	var buf strings.Builder
-	err = formatter.Format(&buf, style, iterator)
+	err = f.formatter.Format(&buf, f.style, iterator)
 	if err != nil {
 		return code
 	}
 
-	return strings.TrimRight(buf.String(), "\n")
+	result := strings.TrimRight(buf.String(), "\n")
+
+	// Cache the result
+	f.highlightCache[lineIdx] = result
+
+	return result
+}
+
+// highlightCode applies syntax highlighting to a line of code (now uses file cache)
+func highlightCode(code string, filename string, fileRef *fileDiff, lineIdx int) string {
+	if fileRef == nil {
+		// Fallback: no caching available
+		return code
+	}
+
+	return fileRef.highlightLine(lineIdx, code)
 }
 
 // findDiffChars finds character-level differences between two strings
@@ -278,8 +306,8 @@ func (m *model) updateContent() {
 	m.leftLineNum = 0
 	m.rightLineNum = 0
 
-	for _, line := range content {
-		left, right, isFullWidth, skip := m.formatLine(line, colWidth, fullWidth)
+	for lineIdx, line := range content {
+		left, right, isFullWidth, skip := m.formatLine(line, colWidth, fullWidth, lineIdx)
 		if skip {
 			// Skip this line entirely
 			continue
@@ -298,7 +326,7 @@ func (m *model) updateContent() {
 	m.rightViewport.SetContent(strings.Join(rightLines, "\n"))
 }
 
-func (m *model) formatLine(line string, width int, fullWidth int) (string, string, bool, bool) {
+func (m *model) formatLine(line string, width int, fullWidth int, lineIdx int) (string, string, bool, bool) {
 	if len(line) == 0 {
 		return "", "", false, false
 	}
@@ -339,10 +367,12 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 		return formatted, "", true, false
 	}
 
-	// Get current filename for syntax highlighting
+	// Get current file reference for syntax highlighting
+	var fileRef *fileDiff
 	filename := ""
 	if m.activeTab < len(m.files) {
-		filename = m.files[m.activeTab].name
+		fileRef = &m.files[m.activeTab]
+		filename = fileRef.name
 	}
 
 	// Handle diff lines
@@ -351,14 +381,14 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 		text := line[1:]
 
 		// Apply syntax highlighting
-		highlighted := highlightCode(text, filename)
+		highlighted := highlightCode(text, filename, fileRef, lineIdx)
 
 		// Truncate if needed
 		visibleLen := len(stripAnsi(highlighted))
 		if visibleLen > width {
 			// Truncate the original text and re-highlight
 			text = text[:width-3] + "..."
-			highlighted = highlightCode(text, filename)
+			highlighted = highlightCode(text, filename, fileRef, lineIdx)
 		}
 
 		// Apply background color directly with ANSI codes to preserve syntax highlighting
@@ -386,14 +416,14 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 		text := line[1:]
 
 		// Apply syntax highlighting
-		highlighted := highlightCode(text, filename)
+		highlighted := highlightCode(text, filename, fileRef, lineIdx)
 
 		// Truncate if needed
 		visibleLen := len(stripAnsi(highlighted))
 		if visibleLen > width {
 			// Truncate the original text and re-highlight
 			text = text[:width-3] + "..."
-			highlighted = highlightCode(text, filename)
+			highlighted = highlightCode(text, filename, fileRef, lineIdx)
 		}
 
 		// Apply background color directly with ANSI codes to preserve syntax highlighting
@@ -417,13 +447,13 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 	}
 
 	// Context line - show on both sides with syntax highlighting
-	highlighted := highlightCode(line, filename)
+	highlighted := highlightCode(line, filename, fileRef, lineIdx)
 
 	// Truncate if needed
 	visibleLen := len(stripAnsi(highlighted))
 	if visibleLen > width {
 		line = line[:width-3] + "..."
-		highlighted = highlightCode(line, filename)
+		highlighted = highlightCode(line, filename, fileRef, lineIdx)
 	}
 
 	leftNum := fmt.Sprintf("%5d ", m.leftLineNum)
@@ -584,6 +614,11 @@ func parseDiffIntoFiles(lines []string) []fileDiff {
 	// Don't forget the last file
 	if currentFile != nil {
 		files = append(files, *currentFile)
+	}
+
+	// Initialize syntax highlighting for all files
+	for i := range files {
+		files[i].initSyntaxHighlighting()
 	}
 
 	return files
