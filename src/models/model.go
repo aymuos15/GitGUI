@@ -65,11 +65,8 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.Width = msg.Width
 		m.Height = msg.Height
 
-		// Calculate viewport height: total - tabs (if multiple files) - help line
-		viewportHeight := msg.Height - 1 // 1 for help
-		if len(m.Files) > 1 {
-			viewportHeight -= 1 // 1 for tabs
-		}
+		// Calculate viewport height: total - tabs (always shown) - help line
+		viewportHeight := msg.Height - 2 // 1 for tabs, 1 for help
 
 		// Layout: left side for diff (60%), right sidebar (40%)
 		sidebarWidth := int(float64(msg.Width) * 0.4)

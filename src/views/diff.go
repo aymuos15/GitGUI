@@ -218,31 +218,29 @@ func RenderDiffView(m *models.Model) string {
 		return content + "\n" + help
 	}
 
-	// Render tabs (only if multiple files)
+	// Render tabs (always show, spanning full width)
 	var tabBar string
-	if len(m.Files) > 1 {
-		var tabs []string
-		for i, file := range m.Files {
-			style := styles.InactiveTabStyle
-			if i == m.ActiveTab {
-				style = styles.ActiveTabStyle
-			}
-			tabLabel := file.Name
-			if len(tabLabel) > 20 {
-				tabLabel = tabLabel[:17] + "..."
-			}
-			tabs = append(tabs, style.Render(tabLabel))
+	var tabs []string
+	for i, file := range m.Files {
+		style := styles.InactiveTabStyle
+		if i == m.ActiveTab {
+			style = styles.ActiveTabStyle
 		}
-		tabBar = lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
-
-		// Add gap to fill the left side width
-		tabBarWidth := len(utils.StripAnsi(tabBar))
-		if tabBarWidth < diffWidth {
-			gap := styles.TabGapStyle.Render(strings.Repeat(" ", diffWidth-tabBarWidth))
-			tabBar = tabBar + gap
+		tabLabel := file.Name
+		if len(tabLabel) > 20 {
+			tabLabel = tabLabel[:17] + "..."
 		}
-		tabBar = tabBar + "\n"
+		tabs = append(tabs, style.Render(tabLabel))
 	}
+	tabBar = lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
+
+	// Add gap to fill the full screen width
+	tabBarWidth := len(utils.StripAnsi(tabBar))
+	if tabBarWidth < m.Width {
+		gap := styles.TabGapStyle.Render(strings.Repeat(" ", m.Width-tabBarWidth))
+		tabBar = tabBar + gap
+	}
+	tabBar = tabBar + "\n"
 
 	divider := styles.DividerStyle.Render("│")
 
@@ -283,23 +281,17 @@ func RenderDiffView(m *models.Model) string {
 	// Render sidebar
 	sidebar := RenderSidebar(m, sidebarWidth)
 
-	// Combine diff and sidebar horizontally
+	// Combine diff and sidebar horizontally (line by line)
 	diffLines := strings.Split(diffContent, "\n")
 	sidebarLines := strings.Split(sidebar, "\n")
 
-	var mainContent []string
-	maxMainLines := len(diffLines)
-	if len(sidebarLines) > maxMainLines {
-		maxMainLines = len(sidebarLines)
+	var bodyContent []string
+	maxBodyLines := len(diffLines)
+	if len(sidebarLines) > maxBodyLines {
+		maxBodyLines = len(sidebarLines)
 	}
 
-	// Build the main content with tabs if needed
-	if tabBar != "" {
-		mainContent = append(mainContent, tabBar)
-	}
-
-	// Combine diff and sidebar line by line
-	for i := 0; i < maxMainLines; i++ {
+	for i := 0; i < maxBodyLines; i++ {
 		left := ""
 		right := ""
 		if i < len(diffLines) {
@@ -308,17 +300,19 @@ func RenderDiffView(m *models.Model) string {
 		if i < len(sidebarLines) {
 			right = sidebarLines[i]
 		}
-		mainContent = append(mainContent, left+right)
+		bodyContent = append(bodyContent, left+right)
 	}
 
-	content := strings.Join(mainContent, "\n")
+	// Assemble final output: tabs + body + help
+	// Tab bar already spans full width, just add it on its own line
+	body := strings.Join(bodyContent, "\n")
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll h/←→:file 1-9:jump"
 	rightHelp := "s:stats l:log q:quit"
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
-	return fmt.Sprintf("%s\n%s", content, help)
+	return fmt.Sprintf("%s%s\n%s", tabBar, body, help)
 }
 
 // RenderHelpBar renders help items as styled tabs
@@ -406,7 +400,7 @@ func RenderHelpBarSplit(leftText string, rightText string, width int) string {
 func RenderSidebar(m *models.Model, sidebarWidth int) string {
 	sidebarStyle := lipgloss.NewStyle().
 		Width(sidebarWidth).
-		Height(m.Height-1).
+		Height(m.Height-2).
 		Border(lipgloss.NormalBorder(), false, false, false, true).
 		BorderForeground(lipgloss.Color("240")).
 		PaddingLeft(1).
