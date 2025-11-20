@@ -29,6 +29,7 @@ type FileDiff struct {
 	Formatter      chroma.Formatter // Cached formatter
 	Additions      int              // Number of added lines
 	Deletions      int              // Number of deleted lines
+	Status         string           // File status: "Modified", "New", "Deleted", "Renamed"
 }
 
 // CalculateStats computes additions and deletions for a file

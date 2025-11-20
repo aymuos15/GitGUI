@@ -10,6 +10,22 @@ import (
 	"github.com/evertras/bubble-table/table"
 )
 
+// getStatusStyle returns the styled status text with appropriate color
+func getStatusStyle(status string) lipgloss.Style {
+	switch status {
+	case "New":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("10")) // Green
+	case "Deleted":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("9")) // Red
+	case "Renamed":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("11")) // Yellow
+	case "Modified":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("12")) // Blue
+	default:
+		return lipgloss.NewStyle() // Default
+	}
+}
+
 // UpdateStatsContent initializes the stats table (should only be called once)
 func UpdateStatsContent(m *models.Model) {
 	// Calculate totals
@@ -24,8 +40,13 @@ func UpdateStatsContent(m *models.Model) {
 	// Build table rows
 	rows := []table.Row{}
 	for _, file := range m.Files {
+		// Apply color styling to status - display only first letter
+		statusLetter := string(file.Status[0])
+		styledStatus := getStatusStyle(file.Status).Render(statusLetter)
+
 		rows = append(rows, table.NewRow(table.RowData{
 			"file":    file.Name,
+			"status":  styledStatus,
 			"added":   file.Additions,
 			"removed": file.Deletions,
 		}))
@@ -34,6 +55,7 @@ func UpdateStatsContent(m *models.Model) {
 	// Add separator line before Total
 	rows = append(rows, table.NewRow(table.RowData{
 		"file":    strings.Repeat("─", 50),
+		"status":  strings.Repeat("─", 6),
 		"added":   strings.Repeat("─", 10),
 		"removed": strings.Repeat("─", 10),
 	}))
@@ -48,6 +70,7 @@ func UpdateStatsContent(m *models.Model) {
 
 	rows = append(rows, table.NewRow(table.RowData{
 		"file":    totalLabel,
+		"status":  "",
 		"added":   totalAdditions,
 		"removed": totalDeletions,
 	}))
@@ -55,6 +78,7 @@ func UpdateStatsContent(m *models.Model) {
 	// Define table columns - file gets fixed good width
 	columns := []table.Column{
 		table.NewColumn("file", "File", 50),
+		table.NewColumn("status", "Status", 6).WithStyle(lipgloss.NewStyle().Align(lipgloss.Center)),
 		table.NewColumn("added", "Added", 10).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right).Foreground(lipgloss.Color("10"))),
 		table.NewColumn("removed", "Removed", 10).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right).Foreground(lipgloss.Color("9"))),
 	}

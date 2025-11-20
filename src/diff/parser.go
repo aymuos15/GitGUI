@@ -28,10 +28,11 @@ func ParseDiffIntoFiles(lines []string) []models.FileDiff {
 				files = append(files, *currentFile)
 			}
 
-			// Start new file
+			// Start new file with default "Modified" status
 			currentFile = &models.FileDiff{
 				Name:    fileName,
 				Content: []string{line},
+				Status:  "Modified",
 			}
 		} else if currentFile != nil {
 			currentFile.Content = append(currentFile.Content, line)
@@ -43,11 +44,29 @@ func ParseDiffIntoFiles(lines []string) []models.FileDiff {
 		files = append(files, *currentFile)
 	}
 
-	// Initialize syntax highlighting and calculate stats for all files
+	// Initialize syntax highlighting, calculate stats, and detect status for all files
 	for i := range files {
 		files[i].InitSyntaxHighlighting()
 		files[i].CalculateStats()
+		detectFileStatus(&files[i])
 	}
 
 	return files
+}
+
+// detectFileStatus parses the file content to determine its status
+func detectFileStatus(file *models.FileDiff) {
+	for _, line := range file.Content {
+		if strings.HasPrefix(line, "new file mode") {
+			file.Status = "New"
+			return
+		} else if strings.HasPrefix(line, "deleted file mode") {
+			file.Status = "Deleted"
+			return
+		} else if strings.HasPrefix(line, "rename from") {
+			file.Status = "Renamed"
+			return
+		}
+	}
+	// Keep default "Modified" status if no special status detected
 }
