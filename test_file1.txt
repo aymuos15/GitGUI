@@ -1,8 +1,0 @@
-Hello world
-This is a test file
-Line 3 remains the same
-Line 4 will be changed
-Line 5 stays the same
-Line 6 is removed
-Line 7 is also the same
-Line 8 ends the file

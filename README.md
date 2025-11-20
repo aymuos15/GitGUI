@@ -1,114 +1,143 @@
-# Diff Viewer
+# DiffView
 
-A side-by-side diff viewer for git diffs in the terminal.
+A beautiful, side-by-side git diff viewer for the terminal. Perfect for code review workflows and integration with OpenCode TUI.
 
 ## Features
 
-- **Side-by-side display**: Compare files with aligned columns
-- **Color coding**: 
-  - Red for removed lines
-  - Green for added lines
-  - Dim for context lines
-- **Line numbers**: Track position in both files
-- **Git integration**: Works with `git diff` output
-- **Simple and fast**: Lightweight, no complex UI framework
+- 📊 **Side-by-side diffs** - View old and new code directly alongside each other
+- 🎨 **Syntax highlighting** - Color-coded additions (green), deletions (red), and context (gray)
+- 📈 **File summaries** - Quick overview of changes across all modified files
+- 🔧 **Git integration** - Works with staged, unstaged, and historical diffs
+- 🖥️ **Terminal optimized** - Responsive design that adapts to your terminal width
 
 ## Installation
 
 ```bash
-pip install rich
+npm install -g diffview
+```
+
+Or build from source:
+
+```bash
+git clone <repository>
+cd diffview
+npm install
+npm run build
+npm install -g .
 ```
 
 ## Usage
 
-```bash
-git diff | python3 diffview.py
-```
-
-### Examples
+### View unstaged changes
 
 ```bash
-# See all unstaged changes
-git diff | python3 diffview.py
-
-# See staged changes
-git diff --staged | python3 diffview.py
-
-# Compare commits
-git diff HEAD~1 | python3 diffview.py
-
-# Compare branches
-git diff main develop | python3 diffview.py
-
-# Use with standard diff command
-diff file1.txt file2.txt | python3 diffview.py
+diffview
 ```
 
-## Keyboard Shortcuts
-
-Currently this is a static display - scroll with your terminal or pipe through `less`:
+### View staged changes
 
 ```bash
-git diff | python3 diffview.py | less
+diffview --staged
+# or
+diffview -s
 ```
 
-## How It Works
-
-1. Reads unified diff format from stdin (git diff output)
-2. Parses the diff into structured lines
-3. Formats as a side-by-side table
-4. Applies color coding
-5. Displays in your terminal
-
-## Output Format
-
-```
-    1 Original line        1 Original line        
-    2 Context line        2 Context line         
-    3 Removed line ❌                            
-                          3 Added line ✓         
-```
-
-## Project Structure
-
-```
-diffview/
-├── diffview.py          - Main application
-├── requirements.txt     - Dependencies
-├── README.md           - This file
-├── QUICKSTART.md       - Quick start guide
-└── test_file*.txt      - Test files
-```
-
-## Examples
-
-### Review changes before committing
+### View changes against a specific commit/branch
 
 ```bash
-git add .
-git diff --staged | python3 diffview.py
+diffview HEAD
+diffview main
+diffview v1.0.0
 ```
 
-### Compare feature branches
+### Disable colored output
 
 ```bash
-git diff main feature-branch | python3 diffview.py
+diffview --no-color
 ```
 
-### View commit changes
+### Show help
 
 ```bash
-git diff HEAD~1 HEAD | python3 diffview.py
+diffview --help
 ```
 
-## Tips
+## Integration with OpenCode
 
-- Pipe through `less` for interactive scrolling: `git diff | python3 diffview.py | less`
-- Pipe through `head` to see first N lines: `git diff | python3 diffview.py | head -50`
-- Create an alias for quick access:
-  ```bash
-  alias gd='git diff | python3 ~/diffview/diffview.py'
-  ```
+To use DiffView within OpenCode, you can run it as a custom command:
+
+```bash
+diffview | opencode
+```
+
+Or integrate it as a custom tool in your `opencode.json`:
+
+```json
+{
+  "tools": {
+    "show-diff": {
+      "description": "Show side-by-side git diff",
+      "command": "diffview"
+    }
+  }
+}
+```
+
+## Output Example
+
+```
+📊 Git Diff Viewer
+
+Summary:
+  1 file changed, +5 insertions, -2 deletions
+
+Files:
+  ✏️  src/app.ts (+5 -2)
+
+✏️  MODIFIED src/app.ts
+
+@@ -10,5 +10,8 @@
+   10  function hello()         │   10  function hello()       
+   11  −   console.log("hi")     │   11  + console.log("hello")
+   12  +   return "greeting"      │   12  + return "greeting"   
+   13     }                       │   13     }                  
+```
+
+## Architecture
+
+### Parser (`src/parser.ts`)
+Parses raw git diff output into structured data:
+- Extracts file changes and status
+- Identifies hunks (sections of changes)
+- Tracks line numbers and change types
+
+### Viewer (`src/viewer.ts`)
+Renders the parsed diff data:
+- Formats output for terminal display
+- Handles side-by-side layout
+- Applies color coding and truncation
+
+### CLI (`src/index.ts`)
+Command-line interface:
+- Argument parsing
+- Summary calculation
+- Tool invocation
+
+## Development
+
+```bash
+# Install dependencies
+npm install
+
+# Build TypeScript
+npm run build
+
+# Run development mode
+npm run dev
+
+# Run the CLI
+node dist/index.js
+```
 
 ## License
 
