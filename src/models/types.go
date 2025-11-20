@@ -118,4 +118,5 @@ type Model struct {
 	NoDiffMessage  string      // Message to display when there's no diff
 	StatsTable     table.Model // Scrollable stats table
 	LogTable       table.Model // Scrollable log table
+	SidebarWidth   int         // Width of the right sidebar
 }

@@ -71,14 +71,18 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			viewportHeight -= 1 // 1 for tabs
 		}
 
+		// Layout: left side for diff (60%), right sidebar (40%)
+		sidebarWidth := int(float64(msg.Width) * 0.4)
+		diffWidth := msg.Width - sidebarWidth - 1 // 1 for divider
+
 		if !m.Ready {
-			m.LeftViewport = viewport.New(msg.Width/2-1, viewportHeight)
-			m.RightViewport = viewport.New(msg.Width/2-1, viewportHeight)
+			m.LeftViewport = viewport.New(diffWidth, viewportHeight)
+			m.RightViewport = viewport.New(diffWidth, viewportHeight)
 			m.LogViewport = viewport.New(msg.Width, viewportHeight)
 			m.Ready = true
 		} else {
-			m.LeftViewport.Width = msg.Width/2 - 1
-			m.RightViewport.Width = msg.Width/2 - 1
+			m.LeftViewport.Width = diffWidth
+			m.RightViewport.Width = diffWidth
 			m.LeftViewport.Height = viewportHeight
 			m.RightViewport.Height = viewportHeight
 			m.LogViewport.Width = msg.Width

@@ -19,8 +19,13 @@ func UpdateContent(m *models.Model) {
 	}
 
 	content := m.Files[m.ActiveTab].Content
-	colWidth := m.Width/2 - 8 // Account for line numbers (6 chars + space)
-	fullWidth := m.Width - 1  // Full width minus divider
+
+	// Calculate column width based on new layout
+	sidebarWidth := int(float64(m.Width) * 0.4)
+	diffWidth := m.Width - sidebarWidth - 1 // 1 for divider
+	colWidth := diffWidth/2 - 8             // Account for line numbers (6 chars + space)
+	fullWidth := diffWidth - 1              // Full width minus divider
+
 	var leftLines, rightLines []string
 
 	m.LeftLineNum = 0
@@ -184,11 +189,15 @@ func formatLine(m *models.Model, line string, width int, fullWidth int, lineIdx 
 	return left, right, false, false
 }
 
-// RenderDiffView renders the side-by-side diff view
+// RenderDiffView renders the side-by-side diff view with static sidebar
 func RenderDiffView(m *models.Model) string {
 	if !m.Ready {
 		return "Loading..."
 	}
+
+	// Calculate sidebar width
+	sidebarWidth := int(float64(m.Width) * 0.4)
+	diffWidth := m.Width - sidebarWidth - 1 // 1 for divider
 
 	// If there's no diff to display, show a centered message
 	if m.NoDiffMessage != "" {
@@ -196,7 +205,7 @@ func RenderDiffView(m *models.Model) string {
 			Foreground(lipgloss.Color("240")).
 			Bold(true).
 			Align(lipgloss.Center).
-			Width(m.Width)
+			Width(diffWidth)
 
 		// Center vertically
 		verticalPadding := (m.Height - 2) / 2
@@ -226,10 +235,10 @@ func RenderDiffView(m *models.Model) string {
 		}
 		tabBar = lipgloss.JoinHorizontal(lipgloss.Top, tabs...)
 
-		// Add gap to fill the rest of the width
+		// Add gap to fill the left side width
 		tabBarWidth := len(utils.StripAnsi(tabBar))
-		if tabBarWidth < m.Width {
-			gap := styles.TabGapStyle.Render(strings.Repeat(" ", m.Width-tabBarWidth))
+		if tabBarWidth < diffWidth {
+			gap := styles.TabGapStyle.Render(strings.Repeat(" ", diffWidth-tabBarWidth))
 			tabBar = tabBar + gap
 		}
 		tabBar = tabBar + "\n"
@@ -268,16 +277,46 @@ func RenderDiffView(m *models.Model) string {
 		}
 	}
 
-	// Build output with tabs at top (if multiple files) and minimal help at bottom
-	content := strings.Join(combined, "\n")
+	// Build diff content
+	diffContent := strings.Join(combined, "\n")
+
+	// Render sidebar
+	sidebar := RenderSidebar(m, sidebarWidth)
+
+	// Combine diff and sidebar horizontally
+	diffLines := strings.Split(diffContent, "\n")
+	sidebarLines := strings.Split(sidebar, "\n")
+
+	var mainContent []string
+	maxMainLines := len(diffLines)
+	if len(sidebarLines) > maxMainLines {
+		maxMainLines = len(sidebarLines)
+	}
+
+	// Build the main content with tabs if needed
+	if tabBar != "" {
+		mainContent = append(mainContent, tabBar)
+	}
+
+	// Combine diff and sidebar line by line
+	for i := 0; i < maxMainLines; i++ {
+		left := ""
+		right := ""
+		if i < len(diffLines) {
+			left = diffLines[i]
+		}
+		if i < len(sidebarLines) {
+			right = sidebarLines[i]
+		}
+		mainContent = append(mainContent, left+right)
+	}
+
+	content := strings.Join(mainContent, "\n")
 
 	// Render help bar with tab-styled items
 	helpText := "↑↓:scroll h/←→:file 1-9:jump s:stats l:log q:quit"
 	help := RenderHelpBar(helpText, m.Width)
 
-	if tabBar != "" {
-		return fmt.Sprintf("%s%s\n%s", tabBar, content, help)
-	}
 	return fmt.Sprintf("%s\n%s", content, help)
 }
 
@@ -305,4 +344,50 @@ func RenderHelpBar(helpText string, width int) string {
 	}
 
 	return helpBar
+}
+
+// RenderSidebar renders a static sidebar with stats and helper info
+func RenderSidebar(m *models.Model, sidebarWidth int) string {
+	sidebarStyle := lipgloss.NewStyle().
+		Width(sidebarWidth).
+		Height(m.Height-1).
+		Border(lipgloss.NormalBorder(), false, false, false, true).
+		BorderForeground(lipgloss.Color("240")).
+		PaddingLeft(1).
+		PaddingRight(1)
+
+	// Calculate stats
+	totalAdditions := 0
+	totalDeletions := 0
+	for _, file := range m.Files {
+		totalAdditions += file.Additions
+		totalDeletions += file.Deletions
+	}
+
+	// Build sidebar content
+	sections := []string{}
+
+	// File info section
+	fileInfo := fmt.Sprintf("Files: %d", len(m.Files))
+	sections = append(sections, lipgloss.NewStyle().Bold(true).Render(fileInfo))
+
+	// Stats section
+	statsText := fmt.Sprintf("Added: +%d\nRemoved: -%d", totalAdditions, totalDeletions)
+	sections = append(sections, statsText)
+
+	// Current file info
+	if m.ActiveTab < len(m.Files) {
+		file := m.Files[m.ActiveTab]
+		currentFile := fmt.Sprintf("\nFile: %s\n+%d -%d", utils.Truncate(file.Name, sidebarWidth-4), file.Additions, file.Deletions)
+		sections = append(sections, currentFile)
+	}
+
+	// Helper section
+	helper := fmt.Sprintf("\nHelpers:\ns:stats l:log\nq:quit d:diff")
+	sections = append(sections, helper)
+
+	content := strings.Join(sections, "\n")
+	content = utils.PadRight(content, sidebarWidth-2)
+
+	return sidebarStyle.Render(content)
 }
