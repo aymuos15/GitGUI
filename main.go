@@ -120,7 +120,9 @@ func (a *appWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Only trigger refresh if auto-reload is enabled
 		if a.AutoReloadEnabled {
 			// Trigger refresh and restart watcher
-			return a, tea.Batch(
+			// Use Sequence to ensure refresh completes before watcher restarts
+			// This forces Bubble Tea to render immediately
+			return a, tea.Sequence(
 				tea.Cmd(refreshDiffData),
 				watcher.WatchGitChanges(),
 			)

@@ -1,6 +1,6 @@
 # Git Gui (GG)
 
-A simple TUI for Git.
+A simple GUI for Git.
 
 ## Features
 
