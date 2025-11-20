@@ -19,19 +19,25 @@ import (
 )
 
 var (
-	leftBgStyle      = lipgloss.NewStyle().Background(lipgloss.Color("52")).Foreground(lipgloss.Color("9"))  // Red bg for removed
-	rightBgStyle     = lipgloss.NewStyle().Background(lipgloss.Color("22")).Foreground(lipgloss.Color("10")) // Green bg for added
-	neutralStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))                                   // White for context
-	headerStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true)                       // Cyan for headers
-	titleStyle       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12"))                       // Blue for file names
+	// Soft, subtle background colors like GitHub
+	leftBgStyle      = lipgloss.NewStyle().Background(lipgloss.Color("#3d1e1e"))       // Very subtle red tint
+	rightBgStyle     = lipgloss.NewStyle().Background(lipgloss.Color("#1e3d1e"))       // Very subtle green tint
+	neutralStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))             // White for context
+	headerStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true) // Cyan for headers
+	titleStyle       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")) // Blue for file names
 	helpStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("241"))
 	dividerStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))   // Gray divider
 	lineNumStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Gray line numbers
-	lineNumBgLeft    = lipgloss.NewStyle().Background(lipgloss.Color("52")).Foreground(lipgloss.Color("240"))
-	lineNumBgRight   = lipgloss.NewStyle().Background(lipgloss.Color("22")).Foreground(lipgloss.Color("240"))
+	lineNumBgLeft    = lipgloss.NewStyle().Background(lipgloss.Color("#3d1e1e")).Foreground(lipgloss.Color("240"))
+	lineNumBgRight   = lipgloss.NewStyle().Background(lipgloss.Color("#1e3d1e")).Foreground(lipgloss.Color("240"))
 	activeTabStyle   = lipgloss.NewStyle().Background(lipgloss.Color("12")).Foreground(lipgloss.Color("15")).Bold(true).Padding(0, 2)
 	inactiveTabStyle = lipgloss.NewStyle().Background(lipgloss.Color("236")).Foreground(lipgloss.Color("7")).Padding(0, 2)
 	tabGapStyle      = lipgloss.NewStyle().Background(lipgloss.Color("234"))
+
+	// ANSI codes for highlighting changed text within lines
+	redHighlight   = "\x1b[48;2;90;40;40m" // Brighter red background for changed text
+	greenHighlight = "\x1b[48;2;40;90;40m" // Brighter green background for changed text
+	resetCode      = "\x1b[0m"
 )
 
 type diffLine struct {
@@ -89,16 +95,112 @@ func highlightCode(code string, filename string) string {
 	return strings.TrimRight(buf.String(), "\n")
 }
 
+// findDiffChars finds character-level differences between two strings
+func findDiffChars(old, new string) ([]int, []int) {
+	// Simple character-by-character comparison
+	// Returns indices of changed characters in old and new strings
+	oldChars := []rune(old)
+	newChars := []rune(new)
+
+	// Find common prefix
+	prefixLen := 0
+	for prefixLen < len(oldChars) && prefixLen < len(newChars) && oldChars[prefixLen] == newChars[prefixLen] {
+		prefixLen++
+	}
+
+	// Find common suffix
+	suffixLen := 0
+	for suffixLen < len(oldChars)-prefixLen && suffixLen < len(newChars)-prefixLen &&
+		oldChars[len(oldChars)-1-suffixLen] == newChars[len(newChars)-1-suffixLen] {
+		suffixLen++
+	}
+
+	// Mark changed regions
+	var oldChanges, newChanges []int
+	for i := prefixLen; i < len(oldChars)-suffixLen; i++ {
+		oldChanges = append(oldChanges, i)
+	}
+	for i := prefixLen; i < len(newChars)-suffixLen; i++ {
+		newChanges = append(newChanges, i)
+	}
+
+	return oldChanges, newChanges
+}
+
+// highlightChangedWords applies brighter background to changed portions using simple word diff
+func highlightChangedWords(oldLine, newLine string, isOldLine bool) string {
+	// Split into words
+	oldWords := strings.Fields(oldLine)
+	newWords := strings.Fields(newLine)
+
+	// Find which words changed
+	maxLen := len(oldWords)
+	if len(newWords) > maxLen {
+		maxLen = len(newWords)
+	}
+
+	changedIndices := make(map[int]bool)
+	for i := 0; i < maxLen; i++ {
+		oldWord := ""
+		newWord := ""
+		if i < len(oldWords) {
+			oldWord = oldWords[i]
+		}
+		if i < len(newWords) {
+			newWord = newWords[i]
+		}
+
+		if oldWord != newWord {
+			changedIndices[i] = true
+		}
+	}
+
+	// If nothing changed or everything changed, don't highlight
+	if len(changedIndices) == 0 || len(changedIndices) == maxLen {
+		return ""
+	}
+
+	// Build result with highlighting on changed words
+	words := oldWords
+	if !isOldLine {
+		words = newWords
+	}
+
+	var result strings.Builder
+	highlightCode := redHighlight
+	if !isOldLine {
+		highlightCode = greenHighlight
+	}
+
+	for i, word := range words {
+		if i > 0 {
+			result.WriteString(" ")
+		}
+
+		if changedIndices[i] {
+			result.WriteString(highlightCode)
+			result.WriteString(word)
+			result.WriteString(resetCode)
+		} else {
+			result.WriteString(word)
+		}
+	}
+
+	return result.String()
+}
+
 type model struct {
-	leftViewport  viewport.Model
-	rightViewport viewport.Model
-	files         []fileDiff
-	activeTab     int
-	ready         bool
-	width         int
-	height        int
-	leftLineNum   int
-	rightLineNum  int
+	leftViewport   viewport.Model
+	rightViewport  viewport.Model
+	files          []fileDiff
+	activeTab      int
+	ready          bool
+	width          int
+	height         int
+	leftLineNum    int
+	rightLineNum   int
+	pendingRemoved []string // Track consecutive removed lines for word-level diff
+	pendingAdded   []string // Track consecutive added lines for word-level diff
 }
 
 func (m model) Init() tea.Cmd {
@@ -259,10 +361,18 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 			highlighted = highlightCode(text, filename)
 		}
 
-		// Use lipgloss Width to set fixed width for background
-		contentStyle := leftBgStyle.Copy().Width(width)
+		// Apply background color directly with ANSI codes to preserve syntax highlighting
+		bgCode := "\x1b[48;2;61;30;30m" // #3d1e1e
+		resetBg := "\x1b[49m"
+
+		// Pad to width
+		padding := width - visibleLen
+		if padding < 0 {
+			padding = 0
+		}
+
 		lineNum := fmt.Sprintf("%5d ", m.leftLineNum)
-		left := lineNumBgLeft.Render(lineNum) + contentStyle.Render(highlighted)
+		left := lineNumBgLeft.Render(lineNum) + bgCode + highlighted + strings.Repeat(" ", padding) + resetBg
 
 		// Right side empty with neutral background
 		emptyStyle := neutralStyle.Copy().Width(width)
@@ -286,14 +396,22 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 			highlighted = highlightCode(text, filename)
 		}
 
-		// Use lipgloss Width to set fixed width for background
-		contentStyle := rightBgStyle.Copy().Width(width)
+		// Apply background color directly with ANSI codes to preserve syntax highlighting
+		bgCode := "\x1b[48;2;30;61;30m" // #1e3d1e
+		resetBg := "\x1b[49m"
+
+		// Pad to width
+		padding := width - visibleLen
+		if padding < 0 {
+			padding = 0
+		}
+
 		lineNum := fmt.Sprintf("%5d ", m.rightLineNum)
 
 		// Left side empty with neutral background
 		emptyStyle := neutralStyle.Copy().Width(width)
 		left := "      " + emptyStyle.Render("")
-		right := lineNumBgRight.Render(lineNum) + contentStyle.Render(highlighted)
+		right := lineNumBgRight.Render(lineNum) + bgCode + highlighted + strings.Repeat(" ", padding) + resetBg
 		m.rightLineNum++
 		return left, right, false, false
 	}
