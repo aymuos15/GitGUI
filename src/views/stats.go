@@ -31,6 +31,13 @@ func UpdateStatsContent(m *models.Model) {
 		}))
 	}
 
+	// Add separator line before Total
+	rows = append(rows, table.NewRow(table.RowData{
+		"file":    strings.Repeat("─", 50),
+		"added":   strings.Repeat("─", 10),
+		"removed": strings.Repeat("─", 10),
+	}))
+
 	// Add Total row at the end
 	fileCount := len(m.Files)
 	fileWord := "file"
