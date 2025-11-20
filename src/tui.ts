@@ -165,17 +165,17 @@ export class DiffTUI {
     const file = this.files[this.currentFileIndex];
     const path = file.newPath || file.oldPath;
 
-    let header = '{bold}📊 Git Diff Viewer{/bold}\n';
+    let header = '\x1b[1m📊 Git Diff Viewer\x1b[0m\n';
     header += `${summary.filesChanged} file${summary.filesChanged !== 1 ? 's' : ''} changed  •  `;
-    header += `{green}+${summary.insertions}{/green}  `;
-    header += `{red}-${summary.deletions}{/red}\n\n`;
-    header += `{bold}Current:{/bold} {blue}${path}{/blue}`;
+    header += `\x1b[32m+${summary.insertions}\x1b[0m  `;
+    header += `\x1b[31m-${summary.deletions}\x1b[0m\n\n`;
+    header += `\x1b[1mCurrent:\x1b[0m \x1b[34m${path}\x1b[0m`;
 
-    this.headerBox.setContent(parseMarkup(header));
+    this.headerBox.setContent(header);
   }
 
   private renderSidebar() {
-    let content = '{bold}Files{/bold}\n';
+    let content = '\x1b[1mFiles\x1b[0m\n'; // bold Files
 
     for (let i = 0; i < this.files.length; i++) {
       const file = this.files[i];
@@ -196,8 +196,12 @@ export class DiffTUI {
         renamed: '➜',
       };
 
-      // Build the line
-      let line = isActive ? '{inverse}' : '';
+      // Build the line - use ANSI codes directly
+      let line = '';
+      if (isActive) {
+        line = '\x1b[7m'; // inverse
+      }
+      
       line += `${statusIcon[file.status]} `;
       
       // Truncate filename to fit
@@ -209,14 +213,14 @@ export class DiffTUI {
       }
 
       if (isActive) {
-        line += '{/inverse}';
+        line += '\x1b[0m'; // reset
       }
 
       content += line + '\n';
-      content += `  {blue}+${addCount}{/blue} {red}-${removeCount}{/red}\n`;
+      content += `  \x1b[32m+${addCount}\x1b[0m \x1b[31m-${removeCount}\x1b[0m\n`;
     }
 
-    this.sidebarBox.setContent(parseMarkup(content));
+    this.sidebarBox.setContent(content);
   }
 
   private renderContent() {
@@ -239,7 +243,7 @@ export class DiffTUI {
       renamed: 'RENAMED',
     };
 
-    content += `{bold}${statusEmoji[file.status]} ${statusText[file.status]}{/bold}\n`;
+    content += `\x1b[1m${statusEmoji[file.status]} ${statusText[file.status]}\x1b[0m\n`;
     content += `${file.newPath || file.oldPath}\n`;
 
     // Calculate column width early
@@ -252,7 +256,7 @@ export class DiffTUI {
 
     // Render hunks
     for (const hunk of file.hunks) {
-      content += `\n{blue}@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@{/blue}\n`;
+      content += `\n\x1b[34m@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@\x1b[0m\n`;
 
       // Separate old and new lines for side-by-side display
       let oldLines: Array<{ lineNum?: number; content: string; type: string }> = [];
@@ -298,7 +302,7 @@ export class DiffTUI {
       }
     }
 
-    this.contentBox.setContent(parseMarkup(content));
+    this.contentBox.setContent(content);
   }
 
   private formatLine(
@@ -323,11 +327,11 @@ export class DiffTUI {
     // Pad to exact width
     displayText = displayText.padEnd(width, ' ');
 
-    // Apply color based on type
+    // Apply color based on type using ANSI codes
     if (line.type === 'remove') {
-      return `{red}${displayText}{/red}`;
+      return `\x1b[31m${displayText}\x1b[0m`;
     } else if (line.type === 'add') {
-      return `{green}${displayText}{/green}`;
+      return `\x1b[32m${displayText}\x1b[0m`;
     } else {
       return displayText;
     }
@@ -338,15 +342,15 @@ export class DiffTUI {
     const total = this.files.length;
 
     let footer = '';
-    footer += '{bold}[n]{/bold}ext  ';
-    footer += '{bold}[p]{/bold}rev  ';
-    footer += '{bold}[j/k]{/bold} scroll  ';
-    footer += '{bold}[?]{/bold} help  ';
-    footer += '{bold}[q]{/bold} quit';
+    footer += '\x1b[1m[n]\x1b[0mext  ';
+    footer += '\x1b[1m[p]\x1b[0mrev  ';
+    footer += '\x1b[1m[j/k]\x1b[0m scroll  ';
+    footer += '\x1b[1m[?]\x1b[0m help  ';
+    footer += '\x1b[1m[q]\x1b[0m quit';
     footer += '                                          ';
     footer += `File ${current}/${total}`;
 
-    this.footerBox.setContent(parseMarkup(footer));
+    this.footerBox.setContent(footer);
   }
 
   private showHelp() {
@@ -372,25 +376,25 @@ export class DiffTUI {
       },
     });
 
-    const helpText = `{bold}Keyboard Shortcuts{/bold}
+    const helpText = `\x1b[1mKeyboard Shortcuts\x1b[0m
 
-{bold}Navigation{/bold}
-  {blue}n{/blue}  or  {blue}→{/blue}      Next file
-  {blue}p{/blue}  or  {blue}←{/blue}      Previous file
-  {blue}j{/blue}  or  {blue}↓{/blue}      Scroll down
-  {blue}k{/blue}  or  {blue}↑{/blue}      Scroll up
+\x1b[1mNavigation\x1b[0m
+  \x1b[34mn\x1b[0m  or  \x1b[34m→\x1b[0m      Next file
+  \x1b[34mp\x1b[0m  or  \x1b[34m←\x1b[0m      Previous file
+  \x1b[34mj\x1b[0m  or  \x1b[34m↓\x1b[0m      Scroll down
+  \x1b[34mk\x1b[0m  or  \x1b[34m↑\x1b[0m      Scroll up
 
-{bold}Scrolling{/bold}
-  {blue}PageDown{/blue}       Scroll page down
-  {blue}PageUp{/blue}         Scroll page up
+\x1b[1mScrolling\x1b[0m
+  \x1b[34mPageDown\x1b[0m       Scroll page down
+  \x1b[34mPageUp\x1b[0m         Scroll page up
 
-{bold}Other{/bold}
-  {blue}?{/blue}  or  {blue}h{/blue}    Show this help
-  {blue}q{/blue}           Quit
+\x1b[1mOther\x1b[0m
+  \x1b[34m?\x1b[0m  or  \x1b[34mh\x1b[0m    Show this help
+  \x1b[34mq\x1b[0m           Quit
 
 Press any key to close`;
 
-    helpBox.setContent(parseMarkup(helpText));
+    helpBox.setContent(helpText);
     this.screen.render();
 
     this.screen.once('key', () => {
