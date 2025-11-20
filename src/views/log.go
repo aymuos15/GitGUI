@@ -13,8 +13,8 @@ import (
 
 // UpdateLogContent populates the log viewport with git log data
 func UpdateLogContent(m *models.Model) {
-	// Run git log command - fetch 100 commits for scrolling
-	cmd := exec.Command("git", "log", "--graph", "--pretty=format:%Cred%h%Creset - %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit", "-100")
+	// Run git log command - fetch all commits
+	cmd := exec.Command("git", "log", "--graph", "--pretty=format:%Cred%h%Creset - %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit")
 	output, err := cmd.Output()
 
 	var logLines []string
@@ -113,39 +113,18 @@ func UpdateLogContent(m *models.Model) {
 
 // RenderLogView renders the log viewport
 func RenderLogView(m *models.Model) string {
-	// Title
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("12")).
-		Render("Git Log (↑↓ to scroll)")
-
-	// Build the content with table (table maintains its own scroll state)
-	var boxContent strings.Builder
-	boxContent.WriteString(title)
-	boxContent.WriteString("\n\n")
-	boxContent.WriteString(m.LogTable.View())
-
-	// Create a box around the content
-	boxStyle := lipgloss.NewStyle().
-		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		Padding(2, 3).
-		Align(lipgloss.Center)
-
-	box := boxStyle.Render(boxContent.String())
-
-	// Center the box vertically and horizontally
-	centeredBox := lipgloss.Place(
+	// Center the table vertically and horizontally
+	centeredContent := lipgloss.Place(
 		m.Width,
 		m.Height-1, // Leave space for help at bottom
 		lipgloss.Center,
 		lipgloss.Center,
-		box,
+		m.LogTable.View(),
 	)
 
 	// Render help bar with tab-styled items at the bottom left
 	helpText := "↑↓:scroll d:diff s:stats l:log q:quit"
 	help := RenderHelpBar(helpText, m.Width)
 
-	return centeredBox + "\n" + help
+	return centeredContent + "\n" + help
 }
