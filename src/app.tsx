@@ -5,6 +5,7 @@ import { DiffResult, FileDiff } from './parser.js';
 
 interface AppProps {
   diffResult: DiffResult;
+  onExit: () => void;
 }
 
 export const App: Component<AppProps> = (props) => {
@@ -18,7 +19,7 @@ export const App: Component<AppProps> = (props) => {
     } else if (key === 'p' && currentFileIndex() > 0) {
       setCurrentFileIndex(currentFileIndex() - 1);
     } else if (key === 'q') {
-      process.exit(0);
+      props.onExit();
     }
   });
 

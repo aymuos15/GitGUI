@@ -40,10 +40,10 @@ async function main() {
       process.exit(0);
     }
 
-    // Render the TUI
-    const { unmount, waitUntilExit } = render(() => App({ diffResult }));
-    await waitUntilExit();
-    unmount();
+    // Render the TUI - wrap in promise to prevent immediate exit
+    await new Promise<void>((resolve) => {
+      render(() => App({ diffResult, onExit: resolve }));
+    });
   } catch (error) {
     if (error instanceof Error) {
       console.error(`Error: ${error.message}`);
