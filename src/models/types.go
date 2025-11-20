@@ -102,21 +102,22 @@ func (f *FileDiff) HighlightLine(lineIdx int, code string) string {
 }
 
 type Model struct {
-	LeftViewport   viewport.Model
-	RightViewport  viewport.Model
-	LogViewport    viewport.Model
-	Files          []FileDiff
-	ActiveTab      int
-	Ready          bool
-	Width          int
-	Height         int
-	LeftLineNum    int
-	RightLineNum   int
-	PendingRemoved []string    // Track consecutive removed lines for word-level diff
-	PendingAdded   []string    // Track consecutive added lines for word-level diff
-	ViewMode       string      // "diff", "stats", or "log"
-	NoDiffMessage  string      // Message to display when there's no diff
-	StatsTable     table.Model // Scrollable stats table
-	LogTable       table.Model // Scrollable log table
-	SidebarWidth   int         // Width of the right sidebar
+	LeftViewport      viewport.Model
+	RightViewport     viewport.Model
+	LogViewport       viewport.Model
+	Files             []FileDiff
+	ActiveTab         int
+	Ready             bool
+	Width             int
+	Height            int
+	LeftLineNum       int
+	RightLineNum      int
+	PendingRemoved    []string    // Track consecutive removed lines for word-level diff
+	PendingAdded      []string    // Track consecutive added lines for word-level diff
+	ViewMode          string      // "diff", "stats", or "log"
+	NoDiffMessage     string      // Message to display when there's no diff
+	StatsTable        table.Model // Scrollable stats table
+	LogTable          table.Model // Scrollable log table
+	SidebarWidth      int         // Width of the right sidebar
+	AutoReloadEnabled bool        // Toggle for automatic reload on git changes
 }

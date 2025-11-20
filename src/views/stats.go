@@ -106,7 +106,11 @@ func RenderStatsView(m *models.Model) string {
 		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
 
 		// Render help bar
-		rightHelp := "l:log q:quit"
+		autoReloadStatus := "off"
+		if m.AutoReloadEnabled {
+			autoReloadStatus = "on"
+		}
+		rightHelp := fmt.Sprintf("a:auto-reload[%s] l:log q:quit", autoReloadStatus)
 		help := RenderHelpBarSplit("", rightHelp, m.Width)
 
 		return content + "\n" + help
@@ -122,7 +126,11 @@ func RenderStatsView(m *models.Model) string {
 	)
 
 	// Render help bar with left and right sections
-	rightHelp := "d:diff s:stats l:log q:quit"
+	autoReloadStatus := "off"
+	if m.AutoReloadEnabled {
+		autoReloadStatus = "on"
+	}
+	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", autoReloadStatus)
 	help := RenderHelpBarSplit("↑↓:scroll", rightHelp, m.Width)
 
 	return centeredContent + "\n" + help

@@ -1,6 +1,7 @@
 package views
 
 import (
+	"fmt"
 	"os/exec"
 	"strings"
 
@@ -207,7 +208,11 @@ func RenderLogView(m *models.Model) string {
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll"
-	rightHelp := "d:diff s:stats l:log q:quit"
+	autoReloadStatus := "off"
+	if m.AutoReloadEnabled {
+		autoReloadStatus = "on"
+	}
+	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", autoReloadStatus)
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return centeredContent + "\n" + help

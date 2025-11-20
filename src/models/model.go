@@ -31,6 +31,9 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
 			return m, tea.Quit
+		case "a":
+			// Toggle auto-reload
+			m.AutoReloadEnabled = !m.AutoReloadEnabled
 		case "s":
 			// Toggle stats view
 			if m.ViewMode == "stats" {

@@ -1,0 +1,12 @@
+diff --git a/file.txt b/file.txt
+index 1234567..89abcdef 100644
+--- a/file.txt
++++ b/file.txt
+@@ -1,5 +1,5 @@
+-This is a deleted line that is very long and should take up space
+-Another deleted line
++This is an added line
++Another added line
+ This is a context line
+-Deleted line 3
++Added line 3
