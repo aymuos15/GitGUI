@@ -176,7 +176,6 @@ export class DiffTUI {
 
   private renderSidebar() {
     let content = '{bold}Files{/bold}\n';
-    content += '─'.repeat(26) + '\n\n';
 
     for (let i = 0; i < this.files.length; i++) {
       const file = this.files[i];
@@ -197,19 +196,28 @@ export class DiffTUI {
         renamed: '➜',
       };
 
+      // Truncate filename to fit in sidebar
+      const maxFileNameLen = 15;
+      let displayName = fileName;
+      if (displayName.length > maxFileNameLen) {
+        displayName = displayName.substring(0, maxFileNameLen - 1) + '…';
+      }
+
       let line = '';
       if (isActive) {
         line = '{inverse}';
       }
 
-      line += ` ${statusIcon[file.status]} ${fileName}`;
-      line += ` {blue}(+${addCount},-${removeCount}){/blue}`;
+      line += `${statusIcon[file.status]} ${displayName}`;
 
       if (isActive) {
         line += '{/inverse}';
       }
 
       content += line + '\n';
+      
+      // Add stats on next line, slightly indented
+      content += `  {blue}+${addCount} -${removeCount}{/blue}\n`;
     }
 
     this.sidebarBox.setContent(parseMarkup(content));
@@ -236,11 +244,19 @@ export class DiffTUI {
     };
 
     content += `{bold}${statusEmoji[file.status]} ${statusText[file.status]}{/bold}\n`;
-    content += `${file.newPath || file.oldPath}\n\n`;
+    content += `${file.newPath || file.oldPath}\n`;
+
+    // Calculate column width early
+    const terminalWidth = this.screen.width || 120;
+    const sidebarWidth = 25;
+    const padding = 2; // left + right padding on content box
+    const separatorWidth = 3; // " │ "
+    const availableWidth = Math.max(50, terminalWidth - sidebarWidth - padding - separatorWidth);
+    const colWidth = Math.max(20, Math.floor(availableWidth / 2));
 
     // Render hunks
     for (const hunk of file.hunks) {
-      content += `{blue}@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@{/blue}\n`;
+      content += `\n{blue}@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@{/blue}\n`;
 
       // Separate old and new lines for side-by-side display
       let oldLines: Array<{ lineNum?: number; content: string; type: string }> = [];
@@ -273,15 +289,6 @@ export class DiffTUI {
         }
       }
 
-      // Render side-by-side with better spacing
-      // Calculate column width: total width - sidebar - padding - separator
-      const terminalWidth = this.screen.width || 120;
-      const sidebarWidth = 25;
-      const padding = 2; // left + right padding on content box
-      const separatorWidth = 3; // " │ "
-      const availableWidth = terminalWidth - sidebarWidth - padding - separatorWidth;
-      const colWidth = Math.max(30, Math.floor(availableWidth / 2));
-
       const maxLines = Math.max(oldLines.length, newLines.length);
 
       for (let i = 0; i < maxLines; i++) {
@@ -293,8 +300,6 @@ export class DiffTUI {
 
         content += `${oldFormatted} │ ${newFormatted}\n`;
       }
-
-      content += '\n';
     }
 
     this.contentBox.setContent(parseMarkup(content));
@@ -304,29 +309,32 @@ export class DiffTUI {
     line: { lineNum?: number; content: string; type: string },
     width: number
   ): string {
+    // Handle empty lines
+    if (line.type === 'empty') {
+      return ' '.repeat(width);
+    }
+
     const lineNum = line.lineNum ? String(line.lineNum).padStart(4) : '    ';
     const marker = line.type === 'remove' ? '−' : line.type === 'add' ? '+' : ' ';
+    const text = `${lineNum} ${marker} ${line.content}`;
 
-    let text = `${lineNum} ${marker} ${line.content}`;
-
-    // Truncate to width if needed
+    // Truncate to width if needed (accounting for actual character count, not markup)
+    let displayText = text;
     if (text.length > width) {
-      text = text.substring(0, width - 1) + '…';
+      displayText = text.substring(0, width - 1) + '…';
     }
 
-    // Color the line based on type
-    let colored: string;
+    // Pad to exact width
+    displayText = displayText.padEnd(width, ' ');
+
+    // Apply color based on type
     if (line.type === 'remove') {
-      colored = `{red}${text}{/red}`;
+      return `{red}${displayText}{/red}`;
     } else if (line.type === 'add') {
-      colored = `{green}${text}{/green}`;
-    } else if (line.type === 'context') {
-      colored = text;
+      return `{green}${displayText}{/green}`;
     } else {
-      colored = ' '.repeat(width);
+      return displayText;
     }
-
-    return colored.padEnd(width);
   }
 
   private renderFooter() {
