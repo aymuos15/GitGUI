@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import chalk from 'chalk';
+import * as readline from 'readline';
 import { getGitDiff } from './parser.js';
 import { DiffViewer } from './viewer.js';
 
@@ -53,9 +54,16 @@ async function main() {
     console.log('');
 
     // Render diffs
-    const viewer = new DiffViewer();
+    const viewer = new DiffViewer(diffResult.files);
     const output = viewer.renderAllDiffs(diffResult.files);
     console.log(output);
+
+    // Show navigation hints if multiple files
+    if (diffResult.files.length > 1) {
+      console.log('');
+      printNavigationHints(viewer);
+      await interactiveMode(viewer, diffResult.files);
+    }
   } catch (error) {
     if (error instanceof Error) {
       console.error(chalk.red(`Error: ${error.message}`));
@@ -64,6 +72,67 @@ async function main() {
     }
     process.exit(1);
   }
+}
+
+async function interactiveMode(viewer: DiffViewer, files: any[]) {
+  const rl = readline.createInterface({
+    input: process.stdin,
+    output: process.stdout,
+  });
+
+  const askUser = (): Promise<void> => {
+    return new Promise((resolve) => {
+      rl.question(chalk.cyan('> '), (answer) => {
+        const cmd = answer.toLowerCase().trim();
+
+        if (cmd === 'n' || cmd === 'next') {
+          if (viewer.nextFile()) {
+            clearScreen();
+            const output = viewer.renderAllDiffs(files);
+            console.log(output);
+            printNavigationHints(viewer);
+            askUser().then(resolve);
+          } else {
+            console.log(chalk.yellow('Already on the last file'));
+            askUser().then(resolve);
+          }
+        } else if (cmd === 'p' || cmd === 'prev') {
+          if (viewer.prevFile()) {
+            clearScreen();
+            const output = viewer.renderAllDiffs(files);
+            console.log(output);
+            printNavigationHints(viewer);
+            askUser().then(resolve);
+          } else {
+            console.log(chalk.yellow('Already on the first file'));
+            askUser().then(resolve);
+          }
+        } else if (cmd === 'q' || cmd === 'quit') {
+          rl.close();
+          process.exit(0);
+        } else if (cmd === 'h' || cmd === 'help') {
+          printNavigationHints(viewer);
+          askUser().then(resolve);
+        } else {
+          console.log(chalk.red('Unknown command. Type "h" for help'));
+          askUser().then(resolve);
+        }
+      });
+    });
+  };
+
+  await askUser();
+}
+
+function clearScreen() {
+  console.clear();
+  console.log(chalk.blue.bold('📊 Git Diff Viewer\n'));
+}
+
+function printNavigationHints(viewer: DiffViewer) {
+  const current = viewer.getCurrentFileIndex() + 1;
+  const total = viewer.getTotalFiles();
+  console.log(chalk.dim(`File ${current}/${total} — Press 'n' for next, 'p' for prev, 'q' to quit, 'h' for help`));
 }
 
 function printSummary(diffResult: any) {

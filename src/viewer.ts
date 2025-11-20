@@ -9,10 +9,13 @@ interface TerminalSize {
 export class DiffViewer {
   private terminalWidth: number;
   private terminalHeight: number;
+  private currentFileIndex: number = 0;
+  private files: FileDiff[] = [];
 
-  constructor() {
+  constructor(files: FileDiff[] = []) {
     this.terminalWidth = process.stdout.columns || 120;
     this.terminalHeight = process.stdout.rows || 40;
+    this.files = files;
   }
 
   /**
@@ -36,16 +39,92 @@ export class DiffViewer {
   }
 
   /**
-   * Render all file diffs
+   * Render all file diffs with tabs
    */
   renderAllDiffs(files: FileDiff[]): string {
+    this.files = files;
     const lines: string[] = [];
 
-    for (const file of files) {
-      lines.push(this.renderFileDiff(file));
+    // Render tab bar
+    lines.push(this.renderTabBar());
+    lines.push(this.renderTabSeparator());
+    lines.push('');
+
+    // Render current file
+    if (files.length > 0) {
+      lines.push(this.renderFileDiff(files[this.currentFileIndex]));
     }
 
     return lines.join('\n');
+  }
+
+  /**
+   * Render tab bar for file navigation
+   */
+  private renderTabBar(): string {
+    const tabs: string[] = [];
+
+    for (let i = 0; i < this.files.length; i++) {
+      const file = this.files[i];
+      const isActive = i === this.currentFileIndex;
+      const fileName = file.newPath || file.oldPath;
+      const shortName = fileName.split('/').pop() || fileName;
+
+      let tab = ` ${shortName} `;
+
+      if (isActive) {
+        tab = chalk.inverse.bold(tab);
+      } else {
+        tab = chalk.dim(tab);
+      }
+
+      tabs.push(tab);
+    }
+
+    return tabs.join('');
+  }
+
+  /**
+   * Render separator line under tabs
+   */
+  private renderTabSeparator(): string {
+    return chalk.gray('─'.repeat(this.terminalWidth));
+  }
+
+  /**
+   * Get the next file index
+   */
+  nextFile(): boolean {
+    if (this.currentFileIndex < this.files.length - 1) {
+      this.currentFileIndex++;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get the previous file index
+   */
+  prevFile(): boolean {
+    if (this.currentFileIndex > 0) {
+      this.currentFileIndex--;
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Get current file index
+   */
+  getCurrentFileIndex(): number {
+    return this.currentFileIndex;
+  }
+
+  /**
+   * Get total number of files
+   */
+  getTotalFiles(): number {
+    return this.files.length;
   }
 
   private renderFileHeader(file: FileDiff): string {

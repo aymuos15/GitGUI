@@ -7,6 +7,7 @@ A beautiful, side-by-side git diff viewer for the terminal. Perfect for code rev
 - 📊 **Side-by-side diffs** - View old and new code directly alongside each other
 - 🎨 **Syntax highlighting** - Color-coded additions (green), deletions (red), and context (gray)
 - 📈 **File summaries** - Quick overview of changes across all modified files
+- 📑 **Tab navigation** - Browse multiple files with interactive tabs (use `n`/`p` keys)
 - 🔧 **Git integration** - Works with staged, unstaged, and historical diffs
 - 🖥️ **Terminal optimized** - Responsive design that adapts to your terminal width
 
@@ -85,6 +86,7 @@ Or integrate it as a custom tool in your `opencode.json`:
 
 ## Output Example
 
+With a single file:
 ```
 📊 Git Diff Viewer
 
@@ -102,6 +104,33 @@ Files:
    12  +   return "greeting"      │   12  + return "greeting"   
    13     }                       │   13     }                  
 ```
+
+With multiple files (interactive tabs):
+```
+📊 Git Diff Viewer
+
+Summary:
+  2 files changed, +10 insertions, -5 deletions
+
+Files:
+  ✏️  src/app.ts (+5 -2)
+  ✏️  src/utils.ts (+5 -3)
+
+ app.ts  utils.ts 
+────────────────────────────────────────────────────────────────────
+
+✏️  MODIFIED src/app.ts
+[diff content...]
+
+File 1/2 — Press 'n' for next, 'p' for prev, 'q' to quit, 'h' for help
+>
+```
+
+When you have multiple files, use the following keyboard commands:
+- `n` or `next` - Go to the next file
+- `p` or `prev` - Go to the previous file
+- `h` or `help` - Show help message
+- `q` or `quit` - Exit the viewer
 
 ## Architecture
 
