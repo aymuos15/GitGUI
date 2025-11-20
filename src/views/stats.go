@@ -114,7 +114,7 @@ func RenderStatsView(m *models.Model) string {
 
 	// Render help bar with left and right sections
 	rightHelp := "d:diff s:stats l:log q:quit"
-	help := RenderHelpBarSplit("", rightHelp, m.Width)
+	help := RenderHelpBarSplit("↑↓:scroll", rightHelp, m.Width)
 
 	return centeredContent + "\n" + help
 }

@@ -236,7 +236,7 @@ func RenderDiffView(m *models.Model) string {
 		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
 
 		// Render help bar
-		rightHelp := "l:log q:quit"
+		rightHelp := "d:diff l:log q:quit"
 		help := RenderHelpBarSplit("", rightHelp, m.Width)
 
 		return tabBar + content + "\n" + help
@@ -309,7 +309,7 @@ func RenderDiffView(m *models.Model) string {
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll h/←→:file 1-9:jump"
-	rightHelp := "s:stats l:log q:quit"
+	rightHelp := "d:diff s:stats l:log q:quit"
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return fmt.Sprintf("%s%s\n%s", tabBar, body, help)
