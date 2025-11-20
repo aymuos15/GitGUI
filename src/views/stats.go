@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"gg/src/models"
+	"gg/src/styles"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"
@@ -87,30 +88,9 @@ func UpdateStatsContent(m *models.Model) {
 	m.StatsTable = table.New(columns).
 		WithRows(rows).
 		Focused(true).
-		Border(table.Border{
-			Top:            "─",
-			Left:           "│",
-			Right:          "│",
-			Bottom:         "─",
-			TopRight:       "┐",
-			TopLeft:        "┌",
-			BottomRight:    "┘",
-			BottomLeft:     "└",
-			TopJunction:    "┬",
-			LeftJunction:   "├",
-			RightJunction:  "┤",
-			BottomJunction: "┴",
-			InnerJunction:  "┼",
-			InnerDivider:   "│",
-		}).
-		HeaderStyle(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("15")).
-			Background(lipgloss.Color("12")).
-			Align(lipgloss.Center).
-			Bold(true)).
-		WithBaseStyle(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("15")).
-			Align(lipgloss.Left)).
+		Border(styles.TableBorder).
+		HeaderStyle(styles.TableHeaderStyle).
+		WithBaseStyle(styles.TableBaseStyle).
 		WithPageSize(15).
 		WithFooterVisibility(false)
 }
@@ -130,11 +110,7 @@ func RenderStatsView(m *models.Model) string {
 		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
 
 		// Render help bar
-		autoReloadStatus := "off"
-		if m.AutoReloadEnabled {
-			autoReloadStatus = "on"
-		}
-		rightHelp := fmt.Sprintf("a:auto-reload[%s] l:log q:quit", autoReloadStatus)
+		rightHelp := fmt.Sprintf("a:auto-reload[%s] l:log q:quit", getAutoReloadStatus(m.AutoReloadEnabled))
 		help := RenderHelpBarSplit("", rightHelp, m.Width)
 
 		return content + "\n" + help
@@ -150,11 +126,7 @@ func RenderStatsView(m *models.Model) string {
 	)
 
 	// Render help bar with left and right sections
-	autoReloadStatus := "off"
-	if m.AutoReloadEnabled {
-		autoReloadStatus = "on"
-	}
-	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", autoReloadStatus)
+	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", getAutoReloadStatus(m.AutoReloadEnabled))
 	help := RenderHelpBarSplit("↑↓:scroll", rightHelp, m.Width)
 
 	return centeredContent + "\n" + help

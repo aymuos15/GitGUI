@@ -8,7 +8,7 @@ import (
 )
 
 type GitChangeMsg struct {
-	ChangeType string
+	ChangeType string // For future extensibility (e.g., differentiating "staged" vs "unstaged" changes)
 }
 
 func WatchGitChanges() tea.Cmd {

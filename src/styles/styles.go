@@ -1,15 +1,14 @@
 package styles
 
-import "github.com/charmbracelet/lipgloss"
+import (
+	"github.com/charmbracelet/lipgloss"
+	"github.com/evertras/bubble-table/table"
+)
 
 var (
 	// Soft, subtle background colors like GitHub
-	LeftBgStyle      = lipgloss.NewStyle().Background(lipgloss.Color("#3d1e1e"))       // Very subtle red tint
-	RightBgStyle     = lipgloss.NewStyle().Background(lipgloss.Color("#1e3d1e"))       // Very subtle green tint
 	NeutralStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))             // White for context
 	HeaderStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true) // Cyan for headers
-	TitleStyle       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")) // Blue for file names
-	HelpStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("236")).Padding(0, 1)
 	HelpItemStyle1   = lipgloss.NewStyle().Background(lipgloss.Color("#6B5B7C")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel purple
 	HelpItemStyle2   = lipgloss.NewStyle().Background(lipgloss.Color("#5B7C7C")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel teal
 	HelpItemStyle3   = lipgloss.NewStyle().Background(lipgloss.Color("#7C6B5B")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel brown
@@ -24,9 +23,33 @@ var (
 	ActiveTabStyle   = lipgloss.NewStyle().Background(lipgloss.Color("12")).Foreground(lipgloss.Color("15")).Bold(true).Padding(0, 2)
 	InactiveTabStyle = lipgloss.NewStyle().Background(lipgloss.Color("236")).Foreground(lipgloss.Color("7")).Padding(0, 2)
 	TabGapStyle      = lipgloss.NewStyle().Background(lipgloss.Color("234"))
+	ResetCode        = "\x1b[0m"
 
-	// ANSI codes for highlighting changed text within lines
-	RedHighlight   = "\x1b[48;2;90;40;40m" // Brighter red background for changed text
-	GreenHighlight = "\x1b[48;2;40;90;40m" // Brighter green background for changed text
-	ResetCode      = "\x1b[0m"
+	// Table styles shared across views
+	TableBorder = table.Border{
+		Top:            "─",
+		Left:           "│",
+		Right:          "│",
+		Bottom:         "─",
+		TopRight:       "┐",
+		TopLeft:        "┌",
+		BottomRight:    "┘",
+		BottomLeft:     "└",
+		TopJunction:    "┬",
+		LeftJunction:   "├",
+		RightJunction:  "┤",
+		BottomJunction: "┴",
+		InnerJunction:  "┼",
+		InnerDivider:   "│",
+	}
+
+	TableHeaderStyle = lipgloss.NewStyle().
+				Foreground(lipgloss.Color("15")).
+				Background(lipgloss.Color("12")).
+				Align(lipgloss.Center).
+				Bold(true)
+
+	TableBaseStyle = lipgloss.NewStyle().
+			Foreground(lipgloss.Color("15")).
+			Align(lipgloss.Left)
 )

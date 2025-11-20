@@ -6,6 +6,7 @@ import (
 	"strings"
 
 	"gg/src/models"
+	"gg/src/styles"
 	"gg/src/utils"
 
 	"github.com/charmbracelet/lipgloss"
@@ -164,30 +165,9 @@ func UpdateLogContent(m *models.Model) {
 	m.LogTable = table.New(columns).
 		WithRows(rows).
 		Focused(true).
-		Border(table.Border{
-			Top:            "─",
-			Left:           "│",
-			Right:          "│",
-			Bottom:         "─",
-			TopRight:       "┐",
-			TopLeft:        "┌",
-			BottomRight:    "┘",
-			BottomLeft:     "└",
-			TopJunction:    "┬",
-			LeftJunction:   "├",
-			RightJunction:  "┤",
-			BottomJunction: "┴",
-			InnerJunction:  "┼",
-			InnerDivider:   "│",
-		}).
-		HeaderStyle(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("15")).
-			Background(lipgloss.Color("12")).
-			Align(lipgloss.Center).
-			Bold(true)).
-		WithBaseStyle(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("15")).
-			Align(lipgloss.Left)).
+		Border(styles.TableBorder).
+		HeaderStyle(styles.TableHeaderStyle).
+		WithBaseStyle(styles.TableBaseStyle).
 		WithPageSize(20).
 		WithFooterVisibility(false)
 
@@ -208,11 +188,7 @@ func RenderLogView(m *models.Model) string {
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll"
-	autoReloadStatus := "off"
-	if m.AutoReloadEnabled {
-		autoReloadStatus = "on"
-	}
-	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", autoReloadStatus)
+	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", getAutoReloadStatus(m.AutoReloadEnabled))
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return centeredContent + "\n" + help

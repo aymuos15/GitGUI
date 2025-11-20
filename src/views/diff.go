@@ -12,6 +12,14 @@ import (
 	"github.com/charmbracelet/lipgloss"
 )
 
+// getAutoReloadStatus returns "on" if enabled, "off" otherwise
+func getAutoReloadStatus(enabled bool) string {
+	if enabled {
+		return "on"
+	}
+	return "off"
+}
+
 // UpdateContent updates the viewport content with the current file's diff
 func UpdateContent(m *models.Model) {
 	if len(m.Files) == 0 || m.ActiveTab >= len(m.Files) {
@@ -243,11 +251,7 @@ func RenderDiffView(m *models.Model) string {
 		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
 
 		// Render help bar
-		autoReloadStatus := "off"
-		if m.AutoReloadEnabled {
-			autoReloadStatus = "on"
-		}
-		rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff l:log q:quit", autoReloadStatus)
+		rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff l:log q:quit", getAutoReloadStatus(m.AutoReloadEnabled))
 		help := RenderHelpBarSplit("", rightHelp, m.Width)
 
 		return tabBar + content + "\n" + help
@@ -291,40 +295,10 @@ func RenderDiffView(m *models.Model) string {
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll h/←→:file 1-9:jump"
-	autoReloadStatus := "off"
-	if m.AutoReloadEnabled {
-		autoReloadStatus = "on"
-	}
-	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", autoReloadStatus)
+	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", getAutoReloadStatus(m.AutoReloadEnabled))
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return fmt.Sprintf("%s%s\n%s", tabBar, body, help)
-}
-
-// RenderHelpBar renders help items as styled tabs
-func RenderHelpBar(helpText string, width int) string {
-	// Split help text by spaces to get individual items
-	items := strings.Fields(helpText)
-
-	var styledItems []string
-
-	for i, item := range items {
-		// Cycle through different styles
-		styleIndex := i % len(styles.HelpItemStyles)
-		styledItems = append(styledItems, styles.HelpItemStyles[styleIndex].Render(item))
-	}
-
-	// Join items with gaps
-	helpBar := lipgloss.JoinHorizontal(lipgloss.Top, styledItems...)
-
-	// Calculate remaining space and fill with background
-	helpBarWidth := lipgloss.Width(helpBar)
-	if helpBarWidth < width {
-		gap := styles.HelpGapStyle.Render(strings.Repeat(" ", width-helpBarWidth))
-		helpBar = helpBar + gap
-	}
-
-	return helpBar
 }
 
 // RenderHelpBarSplit renders help items with left and right sections
@@ -380,46 +354,4 @@ func RenderHelpBarSplit(leftText string, rightText string, width int) string {
 	}
 
 	return result
-}
-
-// RenderSidebar renders a static sidebar with stats and helper info
-func RenderSidebar(m *models.Model, sidebarWidth int) string {
-	sidebarStyle := lipgloss.NewStyle().
-		Width(sidebarWidth).
-		Height(m.Height-2).
-		Border(lipgloss.NormalBorder(), false, false, false, true).
-		BorderForeground(lipgloss.Color("240")).
-		PaddingLeft(1).
-		PaddingRight(1)
-
-	// Calculate stats
-	totalAdditions := 0
-	totalDeletions := 0
-	for _, file := range m.Files {
-		totalAdditions += file.Additions
-		totalDeletions += file.Deletions
-	}
-
-	// Build sidebar content
-	sections := []string{}
-
-	// File info section
-	fileInfo := fmt.Sprintf("Files: %d", len(m.Files))
-	sections = append(sections, lipgloss.NewStyle().Bold(true).Render(fileInfo))
-
-	// Stats section
-	statsText := fmt.Sprintf("Added: +%d\nRemoved: -%d", totalAdditions, totalDeletions)
-	sections = append(sections, statsText)
-
-	// Current file info
-	if m.ActiveTab < len(m.Files) {
-		file := m.Files[m.ActiveTab]
-		currentFile := fmt.Sprintf("\nFile: %s\n+%d -%d", utils.Truncate(file.Name, sidebarWidth-4), file.Additions, file.Deletions)
-		sections = append(sections, currentFile)
-	}
-
-	content := strings.Join(sections, "\n")
-	content = utils.PadRight(content, sidebarWidth-2)
-
-	return sidebarStyle.Render(content)
 }

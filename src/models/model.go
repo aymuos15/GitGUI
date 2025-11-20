@@ -78,15 +78,12 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.Ready {
 			m.LeftViewport = viewport.New(leftColWidth, viewportHeight)
 			m.RightViewport = viewport.New(rightColWidth, viewportHeight)
-			m.LogViewport = viewport.New(msg.Width, viewportHeight)
 			m.Ready = true
 		} else {
 			m.LeftViewport.Width = leftColWidth
 			m.RightViewport.Width = rightColWidth
 			m.LeftViewport.Height = viewportHeight
 			m.RightViewport.Height = viewportHeight
-			m.LogViewport.Width = msg.Width
-			m.LogViewport.Height = viewportHeight
 		}
 	}
 
