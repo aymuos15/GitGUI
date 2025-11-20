@@ -13,6 +13,23 @@ import (
 
 // UpdateLogContent populates the log viewport with git log data
 func UpdateLogContent(m *models.Model) {
+	// Get HEAD commit hash
+	headCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
+	headOutput, _ := headCmd.Output()
+	headHash := strings.TrimSpace(string(headOutput))
+
+	// Get origin commit hash (try origin/master, then origin/main)
+	originCmd := exec.Command("git", "rev-parse", "--short", "origin/master")
+	originOutput, err := originCmd.Output()
+	originHash := strings.TrimSpace(string(originOutput))
+
+	if err != nil || originHash == "" {
+		// Try origin/main instead
+		originCmd = exec.Command("git", "rev-parse", "--short", "origin/main")
+		originOutput, _ = originCmd.Output()
+		originHash = strings.TrimSpace(string(originOutput))
+	}
+
 	// Run git log command - fetch all commits
 	cmd := exec.Command("git", "log", "--graph", "--pretty=format:%Cred%h%Creset - %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit")
 	output, err := cmd.Output()
@@ -62,12 +79,24 @@ func UpdateLogContent(m *models.Model) {
 		time := strings.TrimSpace(rest[timeStart+1 : strings.Index(rest[timeStart:], ")")+timeStart])
 		author := strings.TrimSpace(rest[authorStart+1 : len(rest)-1])
 
-		rows = append(rows, table.NewRow(table.RowData{
+		// Create row with optional styling based on HEAD or origin
+		row := table.NewRow(table.RowData{
 			"hash":    hash,
 			"message": message,
 			"time":    time,
 			"author":  author,
-		}))
+		})
+
+		// Apply color styling for special commits
+		if hash == headHash {
+			// HEAD commit - pink/magenta
+			row = row.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("212")))
+		} else if hash == originHash {
+			// Origin commit - orange
+			row = row.WithStyle(lipgloss.NewStyle().Foreground(lipgloss.Color("208")))
+		}
+
+		rows = append(rows, row)
 	}
 
 	// Define table columns - message gets good width
