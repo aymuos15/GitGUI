@@ -1,8 +1,8 @@
-#!/usr/bin/env node
+#!/usr/bin/env bun
 
-import chalk from 'chalk';
+import { render } from '@opentui/solid';
 import { getGitDiff } from './parser.js';
-import { DiffTUI } from './tui.js';
+import { App } from './app.js';
 
 interface Options {
   ref?: string;
@@ -36,18 +36,19 @@ async function main() {
     const diffResult = getGitDiff(ref);
 
     if (diffResult.files.length === 0) {
-      console.log(chalk.yellow('No changes to display'));
+      console.log('No changes to display');
       process.exit(0);
     }
 
-    // Launch interactive TUI
-    const tui = new DiffTUI(diffResult);
-    tui.show();
+    // Render the TUI
+    const { unmount, waitUntilExit } = render(() => App({ diffResult }));
+    await waitUntilExit();
+    unmount();
   } catch (error) {
     if (error instanceof Error) {
-      console.error(chalk.red(`Error: ${error.message}`));
+      console.error(`Error: ${error.message}`);
     } else {
-      console.error(chalk.red('An unknown error occurred'));
+      console.error('An unknown error occurred');
     }
     process.exit(1);
   }
@@ -55,7 +56,7 @@ async function main() {
 
 function printHelp() {
   console.log(`
-${chalk.bold('Git Diff Viewer')}
+Git Diff Viewer
 
 Usage: diffview [options] [ref]
 
@@ -74,7 +75,6 @@ Interactive controls:
   p              Previous file
   j/k or ↓/↑    Scroll down/up
   Page Down/Up   Scroll page
-  ?/h            Show help
   q              Quit
 `);
 }
