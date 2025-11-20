@@ -237,6 +237,7 @@ func highlightChangedWords(oldLine, newLine string, isOldLine bool) string {
 type model struct {
 	leftViewport   viewport.Model
 	rightViewport  viewport.Model
+	logViewport    viewport.Model
 	files          []fileDiff
 	activeTab      int
 	ready          bool
@@ -246,7 +247,7 @@ type model struct {
 	rightLineNum   int
 	pendingRemoved []string // Track consecutive removed lines for word-level diff
 	pendingAdded   []string // Track consecutive added lines for word-level diff
-	showStats      bool     // Toggle stats view with 's' key
+	viewMode       string   // "diff", "stats", or "log"
 }
 
 func (m model) Init() tea.Cmd {
@@ -263,19 +264,30 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			return m, tea.Quit
 		case "s":
 			// Toggle stats view
-			m.showStats = !m.showStats
-		case "tab", "right", "l":
-			if !m.showStats && m.activeTab < len(m.files)-1 {
+			if m.viewMode == "stats" {
+				m.viewMode = "diff"
+			} else {
+				m.viewMode = "stats"
+			}
+		case "l":
+			// Show log view
+			m.viewMode = "log"
+			m.updateLogContent()
+		case "d":
+			// Return to diff view
+			m.viewMode = "diff"
+		case "tab", "right":
+			if m.viewMode == "diff" && m.activeTab < len(m.files)-1 {
 				m.activeTab++
 				m.updateContent()
 			}
 		case "shift+tab", "left", "h":
-			if !m.showStats && m.activeTab > 0 {
+			if m.viewMode == "diff" && m.activeTab > 0 {
 				m.activeTab--
 				m.updateContent()
 			}
 		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-			if !m.showStats {
+			if m.viewMode == "diff" {
 				tabNum := int(msg.String()[0] - '1')
 				if tabNum < len(m.files) {
 					m.activeTab = tabNum
@@ -297,21 +309,29 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		if !m.ready {
 			m.leftViewport = viewport.New(msg.Width/2-1, viewportHeight)
 			m.rightViewport = viewport.New(msg.Width/2-1, viewportHeight)
+			m.logViewport = viewport.New(msg.Width, viewportHeight)
 			m.ready = true
 		} else {
 			m.leftViewport.Width = msg.Width/2 - 1
 			m.rightViewport.Width = msg.Width/2 - 1
 			m.leftViewport.Height = viewportHeight
 			m.rightViewport.Height = viewportHeight
+			m.logViewport.Width = msg.Width
+			m.logViewport.Height = viewportHeight
 		}
 
 		m.updateContent()
 	}
 
-	// Sync both viewports
-	m.leftViewport, cmd = m.leftViewport.Update(msg)
-	m.rightViewport.YOffset = m.leftViewport.YOffset
-	m.rightViewport.YPosition = m.leftViewport.YPosition
+	// Handle viewport updates based on current view mode
+	if m.viewMode == "log" {
+		m.logViewport, cmd = m.logViewport.Update(msg)
+	} else if m.viewMode == "diff" {
+		// Sync both diff viewports
+		m.leftViewport, cmd = m.leftViewport.Update(msg)
+		m.rightViewport.YOffset = m.leftViewport.YOffset
+		m.rightViewport.YPosition = m.leftViewport.YPosition
+	}
 
 	return m, cmd
 }
@@ -532,9 +552,12 @@ func (m model) View() string {
 		return "Loading..."
 	}
 
-	// If stats view is active, show stats instead
-	if m.showStats {
+	// Switch between different view modes
+	switch m.viewMode {
+	case "stats":
 		return m.renderStatsView()
+	case "log":
+		return m.renderLogView()
 	}
 
 	// Render tabs (only if multiple files)
@@ -600,7 +623,7 @@ func (m model) View() string {
 	content := strings.Join(combined, "\n")
 
 	// Minimal help text
-	help := helpStyle.Render("↑↓:scroll h/l:file 1-9:jump s:stats q:quit")
+	help := helpStyle.Render("↑↓:scroll h/←→:file 1-9:jump s:stats l:log q:quit")
 
 	if tabBar != "" {
 		return fmt.Sprintf("%s%s\n%s", tabBar, content, help)
@@ -748,9 +771,144 @@ func (m model) renderStatsView() string {
 	)
 
 	// Help text at the bottom
-	help := helpStyle.Render("↑↓:scroll h/l:file 1-9:jump s:stats q:quit")
+	help := helpStyle.Render("d:diff s:stats l:log q:quit")
 
 	return centeredBox + "\n" + help
+}
+
+// updateLogContent populates the log viewport with git log data
+func (m *model) updateLogContent() {
+	// Run git log command - fetch 100 commits for scrolling
+	cmd := exec.Command("git", "log", "--graph", "--pretty=format:%Cred%h%Creset - %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit", "-100")
+	output, err := cmd.Output()
+
+	var logLines []string
+	if err != nil {
+		logLines = []string{"Error: Unable to fetch git log", "Make sure you're in a git repository"}
+	} else {
+		logLines = strings.Split(string(output), "\n")
+	}
+
+	// Define table columns
+	columns := []table.Column{
+		{Title: "Hash", Width: 10},
+		{Title: "Message", Width: 65},
+		{Title: "Time", Width: 18},
+		{Title: "Author", Width: 20},
+	}
+
+	// Build table rows by parsing git log output
+	rows := []table.Row{}
+	for _, line := range logLines {
+		// Strip ANSI codes
+		cleanLine := stripAnsi(line)
+
+		// Skip empty lines
+		if strings.TrimSpace(cleanLine) == "" {
+			continue
+		}
+
+		// Parse format: hash - message (time) <author>
+		// Remove graph characters (* | \ /)
+		cleanLine = strings.TrimLeft(cleanLine, "*|\\ /")
+		cleanLine = strings.TrimSpace(cleanLine)
+
+		// Split by " - " for hash and rest
+		parts := strings.SplitN(cleanLine, " - ", 2)
+		if len(parts) < 2 {
+			continue
+		}
+
+		hash := strings.TrimSpace(parts[0])
+		rest := parts[1]
+
+		// Find message, time, and author
+		// Format: message (time) <author>
+		timeStart := strings.LastIndex(rest, "(")
+		authorStart := strings.LastIndex(rest, "<")
+
+		if timeStart == -1 || authorStart == -1 {
+			continue
+		}
+
+		message := strings.TrimSpace(rest[:timeStart])
+		time := strings.TrimSpace(rest[timeStart+1 : strings.Index(rest[timeStart:], ")")+timeStart])
+		author := strings.TrimSpace(rest[authorStart+1 : len(rest)-1])
+
+		// Truncate if too long
+		if len(message) > 65 {
+			message = message[:62] + "..."
+		}
+		if len(author) > 20 {
+			author = author[:17] + "..."
+		}
+		if len(time) > 18 {
+			time = time[:15] + "..."
+		}
+
+		rows = append(rows, table.Row{hash, message, time, author})
+	}
+
+	// Create table with custom styles
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(false),
+		table.WithHeight(len(rows)),
+	)
+
+	// Custom table styles
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(true).
+		Foreground(lipgloss.Color("240"))
+
+	// Remove highlight from selected row
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("15")).
+		Background(lipgloss.Color("0")).
+		Bold(false)
+
+	// Cell style
+	s.Cell = s.Cell.Foreground(lipgloss.Color("15"))
+
+	t.SetStyles(s)
+
+	// Title
+	title := headerStyle.Render("Git Log (↑↓ to scroll)")
+
+	// Build the content with table
+	var content strings.Builder
+	content.WriteString(title)
+	content.WriteString("\n\n")
+	content.WriteString(t.View())
+
+	// Set viewport content
+	m.logViewport.SetContent(content.String())
+}
+
+// renderLogView renders the log viewport
+func (m model) renderLogView() string {
+	logContent := m.logViewport.View()
+
+	// Calculate padding to push help to the very bottom
+	lines := strings.Split(logContent, "\n")
+	currentHeight := len(lines)
+	totalHeight := m.height - 1 // Reserve 1 line for help
+
+	// Add empty lines if needed to fill the screen
+	if currentHeight < totalHeight {
+		padding := strings.Repeat("\n", totalHeight-currentHeight)
+		logContent += padding
+	}
+
+	// Help text at the bottom
+	help := helpStyle.Render("↑↓:scroll d:diff s:stats l:log q:quit")
+
+	return logContent + "\n" + help
 }
 
 func parseDiffIntoFiles(lines []string) []fileDiff {
@@ -858,6 +1016,7 @@ func main() {
 	m := model{
 		files:     files,
 		activeTab: 0,
+		viewMode:  "diff",
 	}
 
 	p := tea.NewProgram(m, tea.WithAltScreen())
