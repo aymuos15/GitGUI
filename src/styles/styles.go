@@ -10,7 +10,12 @@ var (
 	HeaderStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true) // Cyan for headers
 	TitleStyle       = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("12")) // Blue for file names
 	HelpStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("15")).Background(lipgloss.Color("236")).Padding(0, 1)
-	HelpItemStyle    = lipgloss.NewStyle().Background(lipgloss.Color("205")).Foreground(lipgloss.Color("0")).Padding(0, 2).Bold(true)
+	HelpItemStyle1   = lipgloss.NewStyle().Background(lipgloss.Color("#6B5B7C")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel purple
+	HelpItemStyle2   = lipgloss.NewStyle().Background(lipgloss.Color("#5B7C7C")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel teal
+	HelpItemStyle3   = lipgloss.NewStyle().Background(lipgloss.Color("#7C6B5B")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel brown
+	HelpItemStyle4   = lipgloss.NewStyle().Background(lipgloss.Color("#5B7C6B")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel green
+	HelpItemStyle5   = lipgloss.NewStyle().Background(lipgloss.Color("#7C5B6B")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel mauve
+	HelpItemStyles   = []lipgloss.Style{HelpItemStyle1, HelpItemStyle2, HelpItemStyle3, HelpItemStyle4, HelpItemStyle5}
 	HelpGapStyle     = lipgloss.NewStyle().Background(lipgloss.Color("0"))
 	DividerStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("8"))   // Gray divider
 	LineNumStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("240")) // Gray line numbers

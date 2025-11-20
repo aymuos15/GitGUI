@@ -268,16 +268,11 @@ func RenderHelpBar(helpText string, width int) string {
 	items := strings.Fields(helpText)
 
 	var styledItems []string
-	gapBetween := styles.HelpGapStyle.Render("  ") // Two spaces for visual separation
 
 	for i, item := range items {
-		// Add visual brackets to make it look like a tab
-		tabItem := " " + item + " "
-		styledItems = append(styledItems, styles.HelpItemStyle.Render(tabItem))
-		// Add gap between items (but not after the last one)
-		if i < len(items)-1 {
-			styledItems = append(styledItems, gapBetween)
-		}
+		// Cycle through different styles
+		styleIndex := i % len(styles.HelpItemStyles)
+		styledItems = append(styledItems, styles.HelpItemStyles[styleIndex].Render(item))
 	}
 
 	// Join items with gaps
