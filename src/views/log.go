@@ -99,7 +99,9 @@ func UpdateLogContent(m *models.Model) {
 			InnerDivider:   "│",
 		}).
 		HeaderStyle(lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
+			Foreground(lipgloss.Color("15")).
+			Background(lipgloss.Color("12")).
+			Align(lipgloss.Center).
 			Bold(true)).
 		WithBaseStyle(lipgloss.NewStyle().
 			Foreground(lipgloss.Color("15")).
