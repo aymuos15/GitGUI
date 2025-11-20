@@ -21,21 +21,26 @@ func main() {
 
 	var files []models.FileDiff
 	var noDiffMessage string
+	var viewMode string
 
 	if len(lines) == 0 {
 		noDiffMessage = "No diff to display"
 		files = []models.FileDiff{} // Empty slice
+		viewMode = "log"            // Default to log view when no diff
 	} else {
 		files = diff.ParseDiffIntoFiles(lines)
 		if len(files) == 0 {
 			noDiffMessage = "No files in diff"
+			viewMode = "log" // Default to log view when no files
+		} else {
+			viewMode = "diff" // Show diff view when there are files
 		}
 	}
 
 	m := models.Model{
 		Files:         files,
 		ActiveTab:     0,
-		ViewMode:      "diff",
+		ViewMode:      viewMode,
 		NoDiffMessage: noDiffMessage,
 	}
 
