@@ -6,8 +6,13 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"strings"
 
+	"github.com/alecthomas/chroma/v2"
+	"github.com/alecthomas/chroma/v2/formatters"
+	"github.com/alecthomas/chroma/v2/lexers"
+	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -42,6 +47,48 @@ type fileDiff struct {
 	content []string
 }
 
+// highlightCode applies syntax highlighting to a line of code
+func highlightCode(code string, filename string) string {
+	// Get lexer based on file extension
+	ext := filepath.Ext(filename)
+	lexer := lexers.Get(ext)
+
+	// Fallback to analyzing the content if no lexer found
+	if lexer == nil {
+		lexer = lexers.Analyse(code)
+	}
+
+	// Fallback to plaintext if still no lexer
+	if lexer == nil {
+		lexer = lexers.Fallback
+	}
+
+	lexer = chroma.Coalesce(lexer)
+
+	// Use a dark style that works well in terminals
+	style := styles.Get("monokai")
+	if style == nil {
+		style = styles.Fallback
+	}
+
+	// Create a custom formatter that outputs ANSI color codes
+	formatter := formatters.TTY16m
+
+	// Tokenize and format
+	iterator, err := lexer.Tokenise(nil, code)
+	if err != nil {
+		return code
+	}
+
+	var buf strings.Builder
+	err = formatter.Format(&buf, style, iterator)
+	if err != nil {
+		return code
+	}
+
+	return strings.TrimRight(buf.String(), "\n")
+}
+
 type model struct {
 	leftViewport  viewport.Model
 	rightViewport viewport.Model
@@ -52,7 +99,6 @@ type model struct {
 	height        int
 	leftLineNum   int
 	rightLineNum  int
-	indexInfo     string // Store index information
 }
 
 func (m model) Init() tea.Cmd {
@@ -129,7 +175,6 @@ func (m *model) updateContent() {
 
 	m.leftLineNum = 0
 	m.rightLineNum = 0
-	m.indexInfo = ""
 
 	for _, line := range content {
 		left, right, isFullWidth, skip := m.formatLine(line, colWidth, fullWidth)
@@ -163,19 +208,16 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 		return "", "", false, true // skip = true
 	}
 
-	// Capture and skip index line, we'll show it differently
+	// Skip index line - not useful to users
 	if strings.HasPrefix(line, "index ") {
-		m.indexInfo = strings.TrimPrefix(line, "index ")
 		return "", "", false, true // skip = true
 	}
 
 	if strings.HasPrefix(line, "@@") {
 		// Extract line numbers from @@ header
 		parts := strings.Split(line, "@@")
-		hunkInfo := ""
 		if len(parts) >= 2 {
 			nums := strings.TrimSpace(parts[1])
-			hunkInfo = nums
 			// Parse "-leftStart,leftCount +rightStart,rightCount"
 			if strings.Contains(nums, "-") && strings.Contains(nums, "+") {
 				leftPart := strings.Split(strings.Split(nums, "+")[0], "-")[1]
@@ -190,29 +232,37 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 			}
 		}
 
-		// Build compact header: "index • @@ hunk @@"
-		compactHeader := ""
-		if m.indexInfo != "" {
-			compactHeader = fmt.Sprintf("index %s • @@ %s @@", m.indexInfo, hunkInfo)
-		} else {
-			compactHeader = fmt.Sprintf("@@ %s @@", hunkInfo)
-		}
-
-		formatted := headerStyle.Render(padRight(truncate(compactHeader, fullWidth), fullWidth))
+		// Just show the hunk header
+		formatted := headerStyle.Render(padRight(truncate(line, fullWidth), fullWidth))
 		return formatted, "", true, false
+	}
+
+	// Get current filename for syntax highlighting
+	filename := ""
+	if m.activeTab < len(m.files) {
+		filename = m.files[m.activeTab].name
 	}
 
 	// Handle diff lines
 	if strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---") {
-		// Removed line - show on left only with full background
+		// Removed line - show on left only with syntax highlighting
 		text := line[1:]
-		if len(text) > width {
+
+		// Apply syntax highlighting
+		highlighted := highlightCode(text, filename)
+
+		// Truncate if needed
+		visibleLen := len(stripAnsi(highlighted))
+		if visibleLen > width {
+			// Truncate the original text and re-highlight
 			text = text[:width-3] + "..."
+			highlighted = highlightCode(text, filename)
 		}
+
 		// Use lipgloss Width to set fixed width for background
 		contentStyle := leftBgStyle.Copy().Width(width)
 		lineNum := fmt.Sprintf("%5d ", m.leftLineNum)
-		left := lineNumBgLeft.Render(lineNum) + contentStyle.Render(text)
+		left := lineNumBgLeft.Render(lineNum) + contentStyle.Render(highlighted)
 
 		// Right side empty with neutral background
 		emptyStyle := neutralStyle.Copy().Width(width)
@@ -222,11 +272,20 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 	}
 
 	if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++") {
-		// Added line - show on right only with full background
+		// Added line - show on right only with syntax highlighting
 		text := line[1:]
-		if len(text) > width {
+
+		// Apply syntax highlighting
+		highlighted := highlightCode(text, filename)
+
+		// Truncate if needed
+		visibleLen := len(stripAnsi(highlighted))
+		if visibleLen > width {
+			// Truncate the original text and re-highlight
 			text = text[:width-3] + "..."
+			highlighted = highlightCode(text, filename)
 		}
+
 		// Use lipgloss Width to set fixed width for background
 		contentStyle := rightBgStyle.Copy().Width(width)
 		lineNum := fmt.Sprintf("%5d ", m.rightLineNum)
@@ -234,17 +293,25 @@ func (m *model) formatLine(line string, width int, fullWidth int) (string, strin
 		// Left side empty with neutral background
 		emptyStyle := neutralStyle.Copy().Width(width)
 		left := "      " + emptyStyle.Render("")
-		right := lineNumBgRight.Render(lineNum) + contentStyle.Render(text)
+		right := lineNumBgRight.Render(lineNum) + contentStyle.Render(highlighted)
 		m.rightLineNum++
 		return left, right, false, false
 	}
 
-	// Context line - show on both sides
-	text := truncate(line, width)
+	// Context line - show on both sides with syntax highlighting
+	highlighted := highlightCode(line, filename)
+
+	// Truncate if needed
+	visibleLen := len(stripAnsi(highlighted))
+	if visibleLen > width {
+		line = line[:width-3] + "..."
+		highlighted = highlightCode(line, filename)
+	}
+
 	leftNum := fmt.Sprintf("%5d ", m.leftLineNum)
 	rightNum := fmt.Sprintf("%5d ", m.rightLineNum)
-	left := lineNumStyle.Render(leftNum) + neutralStyle.Render(padRight(text, width))
-	right := lineNumStyle.Render(rightNum) + neutralStyle.Render(padRight(text, width))
+	left := lineNumStyle.Render(leftNum) + neutralStyle.Render(padRight(highlighted, width))
+	right := lineNumStyle.Render(rightNum) + neutralStyle.Render(padRight(highlighted, width))
 	m.leftLineNum++
 	m.rightLineNum++
 	return left, right, false, false

@@ -4,10 +4,13 @@ A beautiful terminal UI for viewing git diffs, built with Charmbracelet tools.
 
 ## Features
 
-- 🎨 Syntax highlighting for git diffs
-- 📜 Full scrolling support with vim-style keybindings
-- 🚀 Can read from `git diff` or stdin
-- ✨ Built with Bubbles, Bubbletea, and Lipgloss
+- 🎨 **Syntax highlighting** - Full syntax highlighting for Python, JavaScript, Go, and many more languages
+- 📊 **Side-by-side view** - Compare old and new code directly alongside each other
+- 📑 **Tabbed interface** - Easy navigation between multiple changed files
+- 🔢 **Line numbers** - See exact line numbers for both versions
+- 📜 **Full scrolling** - Navigate with vim-style keybindings (j/k, arrows, page up/down)
+- 🚀 **Flexible input** - Works with `git diff`, piped input, or any diff format
+- ✨ **Beautiful UI** - Built with Charmbracelet tools (Bubbles, Bubbletea, Lipgloss, Chroma)
 
 ## Installation
 
@@ -39,19 +42,29 @@ git show <commit> | ./diffview
 
 ## Keybindings
 
-- `↑`/`k` - Scroll up
-- `↓`/`j` - Scroll down
-- `Page Up` - Scroll up one page
-- `Page Down` - Scroll down one page
-- `g` - Go to top
-- `G` - Go to bottom
+### Navigation
+- `↑`/`↓` or `j`/`k` - Scroll up/down
+- `Page Up`/`Page Down` - Scroll one page
+- `g` - Jump to top
+- `G` - Jump to bottom
+
+### File Switching
+- `tab`/`h`/`l` or `←`/`→` - Switch between files
+- `1`-`9` - Jump directly to file 1-9
+
+### General
 - `q`/`esc`/`ctrl+c` - Quit
 
-## Color Scheme
+## Syntax Highlighting
 
-- **Green**: Added lines (+)
-- **Red**: Removed lines (-)
-- **Cyan**: File headers (---, +++)
-- **Yellow**: Index information
-- **Gray**: Context markers (@@)
-- **Blue**: Diff headers (diff --git)
+The viewer automatically detects the file type and applies appropriate syntax highlighting:
+
+- **Python** - Keywords (def, class, if, etc.), strings, numbers, comments
+- **JavaScript/TypeScript** - Functions, variables, strings, JSX
+- **Go** - Keywords, types, functions
+- **And many more** - Supports 200+ languages via Chroma
+
+Combined with diff colors:
+- 🟥 **Red background** - Removed lines
+- 🟩 **Green background** - Added lines
+- ⚪ **No background** - Unchanged context lines
