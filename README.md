@@ -1,4 +1,4 @@
-# Git Diff Viewer
+# Git Gui (GG)
 
 A beautiful terminal UI for viewing git diffs, built with Charmbracelet tools.
 
@@ -18,39 +18,41 @@ A beautiful terminal UI for viewing git diffs, built with Charmbracelet tools.
 ## Installation
 
 ```bash
-go build -o diffview
+go build -o gg
+cp gg ~/bin/
 ```
 
 ### After Making Code Changes
 
-After modifying the source code, rebuild and install the binary to your PATH with:
+After modifying the source code, rebuild and install the binary:
 
 ```bash
-make install
+go build -o gg
+cp gg ~/bin/
 ```
 
-This ensures your changes are compiled and available when you run `dif`. Skipping this step will result in running the old binary from cache.
+This ensures your changes are compiled and available when you run `gg`.
 
 ## Usage
 
 View current git diff:
 ```bash
-./diffview
+gg
 ```
 
 View staged changes:
 ```bash
-git diff --staged | ./diffview
+git diff --staged | gg
 ```
 
 View diff between commits:
 ```bash
-git diff HEAD~5..HEAD | ./diffview
+git diff HEAD~5..HEAD | gg
 ```
 
 View diff from a file:
 ```bash
-git show <commit> | ./diffview
+git show <commit> | gg
 ```
 
 ## Keybindings

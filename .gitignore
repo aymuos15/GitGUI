@@ -6,6 +6,4 @@ dist/
 .env.local
 
 # Build artifacts
-diffview
-dif
-bin/
+gg

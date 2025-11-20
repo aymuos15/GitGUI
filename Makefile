@@ -2,15 +2,15 @@
 
 # Build the binary
 build:
-	go build -o bin/dif
+	go build -o gg
 
 # Install to user bin directory
 install: build
-	cp bin/dif $(HOME)/bin/dif
+	cp gg $(HOME)/bin/gg
 
 # Clean build artifacts
 clean:
-	rm -f bin/dif diffview dif
+	rm -f gg
 
 # Default target
 all: install

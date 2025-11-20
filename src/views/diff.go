@@ -199,25 +199,6 @@ func RenderDiffView(m *models.Model) string {
 	sidebarWidth := int(float64(m.Width) * 0.4)
 	diffWidth := m.Width - sidebarWidth - 1 // 1 for divider
 
-	// If there's no diff to display, show a centered message
-	if m.NoDiffMessage != "" {
-		messageStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Bold(true).
-			Align(lipgloss.Center).
-			Width(diffWidth)
-
-		// Center vertically
-		verticalPadding := (m.Height - 2) / 2
-		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
-
-		// Render help bar
-		rightHelp := "l:log q:quit"
-		help := RenderHelpBarSplit("", rightHelp, m.Width)
-
-		return content + "\n" + help
-	}
-
 	// Render tabs (always show, spanning full width)
 	var tabBar string
 	var tabs []string
@@ -241,6 +222,25 @@ func RenderDiffView(m *models.Model) string {
 		tabBar = tabBar + gap
 	}
 	tabBar = tabBar + "\n"
+
+	// If there's no diff to display, show a centered message
+	if m.NoDiffMessage != "" {
+		messageStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(diffWidth)
+
+		// Center vertically (account for tab bar taking 1 line)
+		verticalPadding := (m.Height - 3) / 2
+		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
+
+		// Render help bar
+		rightHelp := "l:log q:quit"
+		help := RenderHelpBarSplit("", rightHelp, m.Width)
+
+		return tabBar + content + "\n" + help
+	}
 
 	divider := styles.DividerStyle.Render("│")
 
