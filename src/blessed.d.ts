@@ -18,6 +18,8 @@ declare module 'blessed' {
     keyboard?: boolean;
     title?: string;
     style?: any;
+    smartCSR?: boolean;
+    trueColor?: boolean;
   }
 
   interface BoxOptions {

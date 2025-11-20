@@ -20,6 +20,8 @@ export class DiffTUI {
       mouse: true,
       keyboard: true,
       title: 'Git Diff Viewer',
+      smartCSR: true,
+      trueColor: true,
       style: {
         bg: '#f8f8f8',
         fg: '#333333',
@@ -38,10 +40,10 @@ export class DiffTUI {
         right: 2,
       },
       style: {
-        bg: '#ffffff',
-        fg: '#333333',
+        bg: 'white',
+        fg: 'black',
         border: {
-          fg: '#e0e0e0',
+          fg: 'gray',
         },
       },
       border: 'bottom',
@@ -58,10 +60,10 @@ export class DiffTUI {
       mouse: true,
       keys: true,
       style: {
-        bg: '#fafafa',
-        fg: '#333333',
+        bg: 'white',
+        fg: 'black',
         border: {
-          fg: '#e0e0e0',
+          fg: 'gray',
         },
       },
       border: 'right',
@@ -84,8 +86,8 @@ export class DiffTUI {
       vi: true,
       alwaysScroll: true,
       style: {
-        bg: '#ffffff',
-        fg: '#333333',
+        bg: 'white',
+        fg: 'black',
       },
       padding: {
         left: 2,
@@ -105,8 +107,8 @@ export class DiffTUI {
         right: 2,
       },
       style: {
-        bg: '#333333',
-        fg: '#ffffff',
+        bg: 'black',
+        fg: 'white',
       },
     });
 
@@ -157,17 +159,17 @@ export class DiffTUI {
     const path = file.newPath || file.oldPath;
 
     let header = '{bold}📊 Git Diff Viewer{/bold}\n';
-    header += `{gray}${summary.filesChanged} file${summary.filesChanged !== 1 ? 's' : ''} changed  •  `;
+    header += `${summary.filesChanged} file${summary.filesChanged !== 1 ? 's' : ''} changed  •  `;
     header += `{green}+${summary.insertions}{/green}  `;
     header += `{red}-${summary.deletions}{/red}\n\n`;
-    header += `{bold}Current:{/bold} {cyan}${path}{/cyan}`;
+    header += `{bold}Current:{/bold} {blue}${path}{/blue}`;
 
     this.headerBox.setContent(header);
   }
 
   private renderSidebar() {
-    let content = '{bold}Files ({gray}' + this.files.length + '{/gray}){/bold}\n';
-    content += '{gray}' + '─'.repeat(26) + '{/gray}\n\n';
+    let content = '{bold}Files{/bold}\n';
+    content += '─'.repeat(26) + '\n\n';
 
     for (let i = 0; i < this.files.length; i++) {
       const file = this.files[i];
@@ -190,14 +192,14 @@ export class DiffTUI {
 
       let line = '';
       if (isActive) {
-        line = '{inverse}';
+        line = '{black bg-cyan}';
       }
 
-      line += `${statusIcon[file.status]} ${fileName}`;
-      line += ` {gray}(+${addCount},-${removeCount}){/gray}`;
+      line += ` ${statusIcon[file.status]} ${fileName}`;
+      line += ` {blue}(+${addCount},-${removeCount}){/blue}`;
 
       if (isActive) {
-        line += '{/inverse}';
+        line += '{/black}';
       }
 
       content += line + '\n';
@@ -227,11 +229,11 @@ export class DiffTUI {
     };
 
     content += `{bold}${statusEmoji[file.status]} ${statusText[file.status]}{/bold}\n`;
-    content += `{gray}${file.newPath || file.oldPath}{/gray}\n\n`;
+    content += `${file.newPath || file.oldPath}\n\n`;
 
     // Render hunks
     for (const hunk of file.hunks) {
-      content += `{cyan}@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@{/cyan}\n`;
+      content += `{blue}@@ -${hunk.oldStart},${hunk.oldCount} +${hunk.newStart},${hunk.newCount} @@{/blue}\n`;
 
       // Separate old and new lines for side-by-side display
       let oldLines: Array<{ lineNum?: number; content: string; type: string }> = [];
@@ -275,7 +277,7 @@ export class DiffTUI {
         const oldFormatted = this.formatLine(oldLine, colWidth);
         const newFormatted = this.formatLine(newLine, colWidth);
 
-        content += `${oldFormatted} {gray}│{/gray} ${newFormatted}\n`;
+        content += `${oldFormatted} │ ${newFormatted}\n`;
       }
 
       content += '\n';
@@ -289,25 +291,25 @@ export class DiffTUI {
     width: number
   ): string {
     const lineNum = line.lineNum ? String(line.lineNum).padStart(4) : '    ';
-    const marker =
-      line.type === 'remove' ? '{red}−{/red}' : line.type === 'add' ? '{green}+{/green}' : ' ';
+    const marker = line.type === 'remove' ? '−' : line.type === 'add' ? '+' : ' ';
 
-    let colored = `${lineNum} ${marker} ${line.content}`;
+    let text = `${lineNum} ${marker} ${line.content}`;
 
-    if (line.type === 'remove') {
-      colored = `{red}${colored}{/red}`;
-    } else if (line.type === 'add') {
-      colored = `{green}${colored}{/green}`;
-    } else if (line.type === 'context') {
-      colored = `{gray}${colored}{/gray}`;
-    } else {
-      colored = ' '.repeat(width);
+    // Truncate to width if needed
+    if (text.length > width) {
+      text = text.substring(0, width - 1) + '…';
     }
 
-    // Truncate to width
-    const stripped = colored.replace(/{[^}]+}/g, '');
-    if (stripped.length > width) {
-      colored = colored.substring(0, width - 1) + '…';
+    // Color the line based on type
+    let colored: string;
+    if (line.type === 'remove') {
+      colored = `{red}${text}{/red}`;
+    } else if (line.type === 'add') {
+      colored = `{green}${text}{/green}`;
+    } else if (line.type === 'context') {
+      colored = text;
+    } else {
+      colored = ' '.repeat(width);
     }
 
     return colored.padEnd(width);
@@ -339,10 +341,10 @@ export class DiffTUI {
       border: 'line',
       style: {
         border: {
-          fg: '#666',
+          fg: 'blue',
         },
-        bg: '#ffffff',
-        fg: '#333333',
+        bg: 'white',
+        fg: 'black',
       },
       padding: {
         left: 2,
@@ -355,20 +357,20 @@ export class DiffTUI {
     const helpText = `{bold}Keyboard Shortcuts{/bold}
 
 {bold}Navigation{/bold}
-  {cyan}n{/cyan}  or  {cyan}→{/cyan}      Next file
-  {cyan}p{/cyan}  or  {cyan}←{/cyan}      Previous file
-  {cyan}j{/cyan}  or  {cyan}↓{/cyan}      Scroll down
-  {cyan}k{/cyan}  or  {cyan}↑{/cyan}      Scroll up
+  {blue}n{/blue}  or  {blue}→{/blue}      Next file
+  {blue}p{/blue}  or  {blue}←{/blue}      Previous file
+  {blue}j{/blue}  or  {blue}↓{/blue}      Scroll down
+  {blue}k{/blue}  or  {blue}↑{/blue}      Scroll up
 
 {bold}Scrolling{/bold}
-  {cyan}PageDown{/cyan}       Scroll page down
-  {cyan}PageUp{/cyan}         Scroll page up
+  {blue}PageDown{/blue}       Scroll page down
+  {blue}PageUp{/blue}         Scroll page up
 
 {bold}Other{/bold}
-  {cyan}?{/cyan}  or  {cyan}h{/cyan}    Show this help
-  {cyan}q{/cyan}           Quit
+  {blue}?{/blue}  or  {blue}h{/blue}    Show this help
+  {blue}q{/blue}           Quit
 
-{gray}Press any key to close{/gray}`;
+Press any key to close`;
 
     helpBox.setContent(helpText);
     this.screen.render();
