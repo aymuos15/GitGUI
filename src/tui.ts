@@ -163,7 +163,7 @@ export class DiffTUI {
   private renderHeader() {
     const summary = this.diffResult.summary;
     const file = this.files[this.currentFileIndex];
-    const path = file.newPath || file.oldPath;
+    const path = file ? (file.newPath || file.oldPath) : 'N/A';
 
     let header = '\x1b[1m📊 Git Diff Viewer\x1b[0m\n';
     header += `${summary.filesChanged} file${summary.filesChanged !== 1 ? 's' : ''} changed  •  `;
@@ -175,6 +175,11 @@ export class DiffTUI {
   }
 
   private renderSidebar() {
+    if (this.files.length === 0) {
+      this.sidebarBox.setContent('\x1b[1mFiles\x1b[0m\n(no changes)');
+      return;
+    }
+
     let content = '\x1b[1mFiles\x1b[0m\n'; // bold Files
 
     for (let i = 0; i < this.files.length; i++) {
