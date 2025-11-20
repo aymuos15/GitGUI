@@ -607,31 +607,40 @@ func (m model) View() string {
 	return fmt.Sprintf("%s\n%s", content, help)
 }
 
-// renderStatsView renders the stats view (git diff --stat style)
+// renderStatsView renders the stats view with a clean modern interface
 func (m model) renderStatsView() string {
 	var boxContent strings.Builder
 
 	// Title
-	title := titleStyle.Render("Diff Statistics")
-	boxContent.WriteString(lipgloss.PlaceHorizontal(100, lipgloss.Center, title))
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("12")).
+		Render("Change Summary")
+	boxContent.WriteString(title)
 	boxContent.WriteString("\n\n")
 
 	// Calculate totals
 	totalAdditions := 0
 	totalDeletions := 0
-	maxNameLen := 0
 
 	for _, file := range m.files {
 		totalAdditions += file.additions
 		totalDeletions += file.deletions
-		if len(file.name) > maxNameLen {
-			maxNameLen = len(file.name)
-		}
 	}
 
-	if maxNameLen > 50 {
-		maxNameLen = 50
-	}
+	// File list header
+	headerStyle := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Bold(true)
+
+	header := fmt.Sprintf("%-50s  %8s  %8s",
+		headerStyle.Render("File"),
+		headerStyle.Render("Added"),
+		headerStyle.Render("Removed"))
+	boxContent.WriteString(header)
+	boxContent.WriteString("\n")
+	boxContent.WriteString(strings.Repeat("─", 70))
+	boxContent.WriteString("\n")
 
 	// Render each file's stats
 	for _, file := range m.files {
@@ -640,57 +649,61 @@ func (m model) renderStatsView() string {
 			fileName = "..." + fileName[len(fileName)-47:]
 		}
 
-		// Format: filename | +additions -deletions | bar chart
-		additions := fmt.Sprintf("+%d", file.additions)
-		deletions := fmt.Sprintf("-%d", file.deletions)
+		// Simple format: filename | additions | deletions
+		additionsStr := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("10")).
+			Render(fmt.Sprintf("%d", file.additions))
 
-		// Create visual bar
-		totalChanges := file.additions + file.deletions
-		barWidth := 40
-		if totalChanges > 0 {
-			addBar := (file.additions * barWidth) / totalChanges
-			if addBar == 0 && file.additions > 0 {
-				addBar = 1
-			}
-			delBar := barWidth - addBar
+		deletionsStr := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("9")).
+			Render(fmt.Sprintf("%d", file.deletions))
 
-			greenBar := lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(strings.Repeat("+", addBar))
-			redBar := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(strings.Repeat("-", delBar))
-
-			line := fmt.Sprintf(" %-50s | %s %s %s", fileName,
-				lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(additions),
-				lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(deletions),
-				greenBar+redBar)
-			boxContent.WriteString(line)
-			boxContent.WriteString("\n")
-		} else {
-			line := fmt.Sprintf(" %-50s | %s %s", fileName, additions, deletions)
-			boxContent.WriteString(line)
-			boxContent.WriteString("\n")
-		}
+		line := fmt.Sprintf("%-50s  %8s  %8s",
+			fileName,
+			additionsStr,
+			deletionsStr)
+		boxContent.WriteString(line)
+		boxContent.WriteString("\n")
 	}
 
-	// Summary line
+	// Summary section
 	boxContent.WriteString("\n")
+	boxContent.WriteString(strings.Repeat("─", 70))
+	boxContent.WriteString("\n")
+
 	fileCount := len(m.files)
 	fileWord := "file"
 	if fileCount != 1 {
 		fileWord = "files"
 	}
 
-	summary := fmt.Sprintf(" %d %s changed, %s, %s",
-		fileCount, fileWord,
-		lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(fmt.Sprintf("%d insertions(+)", totalAdditions)),
-		lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(fmt.Sprintf("%d deletions(-)", totalDeletions)))
+	summaryLabel := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("240")).
+		Render("Total:")
+
+	totalAddStr := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("10")).
+		Bold(true).
+		Render(fmt.Sprintf("%d", totalAdditions))
+
+	totalDelStr := lipgloss.NewStyle().
+		Foreground(lipgloss.Color("9")).
+		Bold(true).
+		Render(fmt.Sprintf("%d", totalDeletions))
+
+	summary := fmt.Sprintf("%-50s  %8s  %8s",
+		summaryLabel+fmt.Sprintf(" %d %s changed", fileCount, fileWord),
+		totalAddStr,
+		totalDelStr)
 
 	boxContent.WriteString(summary)
 
 	// Create a box around the content
 	boxStyle := lipgloss.NewStyle().
 		Border(lipgloss.RoundedBorder()).
-		BorderForeground(lipgloss.Color("12")).
-		Padding(1, 2).
-		Width(100)
+		BorderForeground(lipgloss.Color("240")).
+		Padding(2, 3).
+		Align(lipgloss.Center)
 
 	box := boxStyle.Render(boxContent.String())
 
