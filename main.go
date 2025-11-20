@@ -13,6 +13,7 @@ import (
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/viewport"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
@@ -607,18 +608,8 @@ func (m model) View() string {
 	return fmt.Sprintf("%s\n%s", content, help)
 }
 
-// renderStatsView renders the stats view with a clean modern interface
+// renderStatsView renders the stats view with a clean modern interface using bubbles table
 func (m model) renderStatsView() string {
-	var boxContent strings.Builder
-
-	// Title
-	title := lipgloss.NewStyle().
-		Bold(true).
-		Foreground(lipgloss.Color("12")).
-		Render("Change Summary")
-	boxContent.WriteString(title)
-	boxContent.WriteString("\n\n")
-
 	// Calculate totals
 	totalAdditions := 0
 	totalDeletions := 0
@@ -628,49 +619,86 @@ func (m model) renderStatsView() string {
 		totalDeletions += file.deletions
 	}
 
-	// File list header
-	headerStyle := lipgloss.NewStyle().
-		Foreground(lipgloss.Color("240")).
-		Bold(true)
+	// Define table columns
+	columns := []table.Column{
+		{Title: "File", Width: 50},
+		{Title: "Added", Width: 10},
+		{Title: "Removed", Width: 10},
+	}
 
-	header := fmt.Sprintf("%-50s  %8s  %8s",
-		headerStyle.Render("File"),
-		headerStyle.Render("Added"),
-		headerStyle.Render("Removed"))
-	boxContent.WriteString(header)
-	boxContent.WriteString("\n")
-	boxContent.WriteString(strings.Repeat("─", 70))
-	boxContent.WriteString("\n")
-
-	// Render each file's stats
+	// Build table rows
+	rows := []table.Row{}
 	for _, file := range m.files {
 		fileName := file.name
 		if len(fileName) > 50 {
 			fileName = "..." + fileName[len(fileName)-47:]
 		}
 
-		// Simple format: filename | additions | deletions
-		additionsStr := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("10")).
-			Render(fmt.Sprintf("%d", file.additions))
-
-		deletionsStr := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("9")).
-			Render(fmt.Sprintf("%d", file.deletions))
-
-		line := fmt.Sprintf("%-50s  %8s  %8s",
+		rows = append(rows, table.Row{
 			fileName,
-			additionsStr,
-			deletionsStr)
-		boxContent.WriteString(line)
-		boxContent.WriteString("\n")
+			fmt.Sprintf("%d", file.additions),
+			fmt.Sprintf("%d", file.deletions),
+		})
 	}
 
-	// Summary section
-	boxContent.WriteString("\n")
-	boxContent.WriteString(strings.Repeat("─", 70))
+	// Create table with custom styles
+	t := table.New(
+		table.WithColumns(columns),
+		table.WithRows(rows),
+		table.WithFocused(false),
+		table.WithHeight(len(rows)),
+	)
+
+	// Custom table styles
+	s := table.DefaultStyles()
+	s.Header = s.Header.
+		BorderStyle(lipgloss.NormalBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		BorderBottom(true).
+		Bold(true).
+		Foreground(lipgloss.Color("240"))
+
+	// Remove highlight from selected row - make it look the same as normal cells
+	s.Selected = s.Selected.
+		Foreground(lipgloss.Color("15")).
+		Background(lipgloss.Color("0")).
+		Bold(false)
+
+	// Cell style
+	s.Cell = s.Cell.Foreground(lipgloss.Color("15"))
+
+	t.SetStyles(s)
+
+	// Title
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("12")).
+		Render("Change Summary")
+
+	// Build the content with table
+	var boxContent strings.Builder
+	boxContent.WriteString(title)
+	boxContent.WriteString("\n\n")
+
+	tableView := t.View()
+	boxContent.WriteString(tableView)
+	boxContent.WriteString("\n\n")
+
+	// Calculate separator width from actual table width
+	// The table adds internal spacing, so we measure the first line
+	tableLines := strings.Split(tableView, "\n")
+	var separatorWidth int
+	if len(tableLines) > 0 {
+		// Remove ANSI codes to get actual width
+		separatorWidth = lipgloss.Width(tableLines[0])
+	} else {
+		separatorWidth = 74 // fallback
+	}
+
+	boxContent.WriteString(strings.Repeat("─", separatorWidth))
 	boxContent.WriteString("\n")
 
+	// Summary section - align with table columns
 	fileCount := len(m.files)
 	fileWord := "file"
 	if fileCount != 1 {
@@ -679,23 +707,26 @@ func (m model) renderStatsView() string {
 
 	summaryLabel := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("240")).
-		Render("Total:")
+		Render(fmt.Sprintf("Total: %d %s changed", fileCount, fileWord))
 
-	totalAddStr := lipgloss.NewStyle().
+	// Format totals to align with the Added and Removed columns
+	// Table columns: File(50) + padding + Added(10) + padding + Removed(10)
+	totalAddStr := fmt.Sprintf("%10d", totalAdditions)
+	totalDelStr := fmt.Sprintf("%10d", totalDeletions)
+
+	// Apply color to the formatted strings
+	totalAddStyled := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("10")).
 		Bold(true).
-		Render(fmt.Sprintf("%d", totalAdditions))
+		Render(totalAddStr)
 
-	totalDelStr := lipgloss.NewStyle().
+	totalDelStyled := lipgloss.NewStyle().
 		Foreground(lipgloss.Color("9")).
 		Bold(true).
-		Render(fmt.Sprintf("%d", totalDeletions))
+		Render(totalDelStr)
 
-	summary := fmt.Sprintf("%-50s  %8s  %8s",
-		summaryLabel+fmt.Sprintf(" %d %s changed", fileCount, fileWord),
-		totalAddStr,
-		totalDelStr)
-
+	// Build summary row with proper spacing to match table layout
+	summary := fmt.Sprintf("%-50s  %s  %s", summaryLabel, totalAddStyled, totalDelStyled)
 	boxContent.WriteString(summary)
 
 	// Create a box around the content
