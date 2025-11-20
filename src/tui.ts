@@ -35,10 +35,12 @@ export class DiffTUI {
       top: 0,
       left: 0,
       right: 0,
-      height: 4,
+      height: 3,
       padding: {
         left: 2,
         right: 2,
+        top: 1,
+        bottom: 0,
       },
       style: {
         bg: 'white',
@@ -54,10 +56,10 @@ export class DiffTUI {
     // Sidebar with file list
     this.sidebarBox = blessed.box({
       parent: this.screen,
-      top: 4,
+      top: 3,
       left: 0,
-      width: 30,
-      bottom: 2,
+      width: 25,
+      bottom: 1,
       scrollable: true,
       mouse: true,
       keys: true,
@@ -71,7 +73,7 @@ export class DiffTUI {
       border: 'right',
       padding: {
         left: 1,
-        right: 1,
+        right: 0,
       },
       tags: true,
     });
@@ -79,10 +81,10 @@ export class DiffTUI {
     // Main content area
     this.contentBox = blessed.box({
       parent: this.screen,
-      top: 4,
-      left: 31,
+      top: 3,
+      left: 25,
       right: 0,
-      bottom: 2,
+      bottom: 1,
       scrollable: true,
       mouse: true,
       keys: true,
@@ -93,8 +95,8 @@ export class DiffTUI {
         fg: 'black',
       },
       padding: {
-        left: 2,
-        right: 2,
+        left: 1,
+        right: 1,
       },
       tags: true,
     });
@@ -105,7 +107,7 @@ export class DiffTUI {
       bottom: 0,
       left: 0,
       right: 0,
-      height: 2,
+      height: 1,
       padding: {
         left: 2,
         right: 2,
@@ -272,7 +274,14 @@ export class DiffTUI {
       }
 
       // Render side-by-side with better spacing
-      const colWidth = 55;
+      // Calculate column width: total width - sidebar - padding - separator
+      const terminalWidth = this.screen.width || 120;
+      const sidebarWidth = 25;
+      const padding = 2; // left + right padding on content box
+      const separatorWidth = 3; // " │ "
+      const availableWidth = terminalWidth - sidebarWidth - padding - separatorWidth;
+      const colWidth = Math.max(30, Math.floor(availableWidth / 2));
+
       const maxLines = Math.max(oldLines.length, newLines.length);
 
       for (let i = 0; i < maxLines; i++) {
