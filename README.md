@@ -1,15 +1,16 @@
 # DiffView
 
-A beautiful, side-by-side git diff viewer for the terminal. Perfect for code review workflows and integration with OpenCode TUI.
+A beautiful, interactive git diff viewer for the terminal. Like OpenCode, but for viewing diffs. Full TUI with tabs, scrolling, and keyboard navigation.
 
 ## Features
 
 - 📊 **Side-by-side diffs** - View old and new code directly alongside each other
 - 🎨 **Syntax highlighting** - Color-coded additions (green), deletions (red), and context (gray)
 - 📈 **File summaries** - Quick overview of changes across all modified files
-- 📑 **Tab navigation** - Browse multiple files with interactive tabs (use `n`/`p` keys)
+- 📑 **Interactive tabs** - Browse multiple files with highlighted tabs
+- ⌨️ **Smooth scrolling** - Navigate with j/k, arrows, page up/down
 - 🔧 **Git integration** - Works with staged, unstaged, and historical diffs
-- 🖥️ **Terminal optimized** - Responsive design that adapts to your terminal width
+- 🖥️ **Full TUI** - Clean interface with no terminal background, just like OpenCode
 
 ## Installation
 
@@ -84,53 +85,37 @@ Or integrate it as a custom tool in your `opencode.json`:
 }
 ```
 
-## Output Example
+## Interface
 
-With a single file:
+DiffView launches a full terminal UI with tabs and scrolling:
+
 ```
-📊 Git Diff Viewer
-
-Summary:
-  1 file changed, +5 insertions, -2 deletions
-
-Files:
-  ✏️  src/app.ts (+5 -2)
-
+📊 Git Diff: 2 files changed, +10 -5
+ app.ts  utils.ts 
+────────────────────────────────────────────────────────────────────────────
 ✏️  MODIFIED src/app.ts
 
 @@ -10,5 +10,8 @@
-   10  function hello()         │   10  function hello()       
-   11  −   console.log("hi")     │   11  + console.log("hello")
-   12  +   return "greeting"      │   12  + return "greeting"   
-   13     }                       │   13     }                  
+    10 − function hello()         │   10 + function hello()
+    11 −   console.log("hi")       │   11 + console.log("hello")
+    12 +   return "greeting"       │   12 + return "greeting"
+    13    }                        │   13    }
+
+File 1/2 | +5 -2 | [n]ext [p]rev [?]help [q]uit [j/k]scroll
 ```
 
-With multiple files (interactive tabs):
-```
-📊 Git Diff Viewer
+## Keyboard Shortcuts
 
-Summary:
-  2 files changed, +10 insertions, -5 deletions
-
-Files:
-  ✏️  src/app.ts (+5 -2)
-  ✏️  src/utils.ts (+5 -3)
-
- app.ts  utils.ts 
-────────────────────────────────────────────────────────────────────
-
-✏️  MODIFIED src/app.ts
-[diff content...]
-
-File 1/2 — Press 'n' for next, 'p' for prev, 'q' to quit, 'h' for help
->
-```
-
-When you have multiple files, use the following keyboard commands:
-- `n` or `next` - Go to the next file
-- `p` or `prev` - Go to the previous file
-- `h` or `help` - Show help message
-- `q` or `quit` - Exit the viewer
+| Key | Action |
+|-----|--------|
+| `n` | Next file |
+| `p` | Previous file |
+| `j` / `↓` | Scroll down |
+| `k` / `↑` | Scroll up |
+| `Page Down` | Scroll down (full page) |
+| `Page Up` | Scroll up (full page) |
+| `?` / `h` | Show help dialog |
+| `q` / `Ctrl+C` | Quit |
 
 ## Architecture
 
