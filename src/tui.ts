@@ -7,37 +7,75 @@ export class DiffTUI {
   private files: FileDiff[] = [];
   private diffResult: DiffResult;
   private contentBox: any;
-  private tabBar: any;
-  private statusBar: any;
+  private headerBox: any;
+  private footerBox: any;
+  private sidebarBox: any;
 
   constructor(diffResult: DiffResult) {
     this.diffResult = diffResult;
     this.files = diffResult.files;
 
-    // Create blessed screen
+    // Create blessed screen with better default style
     this.screen = blessed.screen({
       mouse: true,
       keyboard: true,
       title: 'Git Diff Viewer',
+      style: {
+        bg: '#f8f8f8',
+        fg: '#333333',
+      },
     });
 
-    // Create layout boxes
-    this.tabBar = blessed.box({
+    // Header with summary
+    this.headerBox = blessed.box({
       parent: this.screen,
       top: 0,
       left: 0,
       right: 0,
-      height: 2,
+      height: 4,
+      padding: {
+        left: 2,
+        right: 2,
+      },
       style: {
-        bg: 'blue',
-        fg: 'white',
+        bg: '#ffffff',
+        fg: '#333333',
+        border: {
+          fg: '#e0e0e0',
+        },
+      },
+      border: 'bottom',
+    });
+
+    // Sidebar with file list
+    this.sidebarBox = blessed.box({
+      parent: this.screen,
+      top: 4,
+      left: 0,
+      width: 30,
+      bottom: 2,
+      scrollable: true,
+      mouse: true,
+      keys: true,
+      style: {
+        bg: '#fafafa',
+        fg: '#333333',
+        border: {
+          fg: '#e0e0e0',
+        },
+      },
+      border: 'right',
+      padding: {
+        left: 1,
+        right: 1,
       },
     });
 
+    // Main content area
     this.contentBox = blessed.box({
       parent: this.screen,
-      top: 2,
-      left: 0,
+      top: 4,
+      left: 31,
       right: 0,
       bottom: 2,
       scrollable: true,
@@ -46,20 +84,29 @@ export class DiffTUI {
       vi: true,
       alwaysScroll: true,
       style: {
-        bg: 'black',
-        fg: 'white',
+        bg: '#ffffff',
+        fg: '#333333',
+      },
+      padding: {
+        left: 2,
+        right: 2,
       },
     });
 
-    this.statusBar = blessed.box({
+    // Footer with help text
+    this.footerBox = blessed.box({
       parent: this.screen,
       bottom: 0,
       left: 0,
       right: 0,
       height: 2,
+      padding: {
+        left: 2,
+        right: 2,
+      },
       style: {
-        bg: 'black',
-        fg: 'cyan',
+        bg: '#333333',
+        fg: '#ffffff',
       },
     });
 
@@ -72,6 +119,8 @@ export class DiffTUI {
     this.screen.key(['p'], () => this.prevFile());
     this.screen.key(['j'], () => this.contentBox.scroll(1));
     this.screen.key(['k'], () => this.contentBox.scroll(-1));
+    this.screen.key(['left'], () => this.prevFile());
+    this.screen.key(['right'], () => this.nextFile());
     this.screen.key(['h', '?'], () => this.showHelp());
     this.screen.key(['q', 'C-c'], () => process.exit(0));
     this.screen.key(['pagedown'], () => this.contentBox.scroll(10));
@@ -95,38 +144,66 @@ export class DiffTUI {
   }
 
   private render() {
-    this.renderTabBar();
+    this.renderHeader();
+    this.renderSidebar();
     this.renderContent();
-    this.renderStatusBar();
+    this.renderFooter();
     this.screen.render();
   }
 
-  private renderTabBar() {
-    let tabContent = '';
+  private renderHeader() {
     const summary = this.diffResult.summary;
+    const file = this.files[this.currentFileIndex];
+    const path = file.newPath || file.oldPath;
 
-    // Header line with summary
-    const headerLine = ` 📊 Git Diff: ${summary.filesChanged} file${
-      summary.filesChanged !== 1 ? 's' : ''
-    } changed, +${summary.insertions} -${summary.deletions}`;
-    tabContent += headerLine + '\n';
+    let header = '{bold}📊 Git Diff Viewer{/bold}\n';
+    header += `{gray}${summary.filesChanged} file${summary.filesChanged !== 1 ? 's' : ''} changed  •  `;
+    header += `{green}+${summary.insertions}{/green}  `;
+    header += `{red}-${summary.deletions}{/red}\n\n`;
+    header += `{bold}Current:{/bold} {cyan}${path}{/cyan}`;
 
-    // Tab line
-    const tabs: string[] = [];
+    this.headerBox.setContent(header);
+  }
+
+  private renderSidebar() {
+    let content = '{bold}Files ({gray}' + this.files.length + '{/gray}){/bold}\n';
+    content += '{gray}' + '─'.repeat(26) + '{/gray}\n\n';
+
     for (let i = 0; i < this.files.length; i++) {
       const file = this.files[i];
-      const fileName = (file.newPath || file.oldPath).split('/').pop() || file.newPath || file.oldPath;
       const isActive = i === this.currentFileIndex;
+      const fileName = (file.newPath || file.oldPath).split('/').pop() || file.newPath || file.oldPath;
+
+      const addCount = file.hunks
+        .flatMap((h: any) => h.lines)
+        .filter((l: any) => l.type === 'add').length;
+      const removeCount = file.hunks
+        .flatMap((h: any) => h.lines)
+        .filter((l: any) => l.type === 'remove').length;
+
+      const statusIcon: { [key: string]: string } = {
+        added: '✚',
+        modified: '◆',
+        deleted: '✕',
+        renamed: '➜',
+      };
+
+      let line = '';
+      if (isActive) {
+        line = '{inverse}';
+      }
+
+      line += `${statusIcon[file.status]} ${fileName}`;
+      line += ` {gray}(+${addCount},-${removeCount}){/gray}`;
 
       if (isActive) {
-        tabs.push(`{bold}[ ${fileName} ]{/bold}`);
-      } else {
-        tabs.push(` ${fileName} `);
+        line += '{/inverse}';
       }
+
+      content += line + '\n';
     }
 
-    tabContent += tabs.join('  ');
-    this.tabBar.setContent(tabContent);
+    this.sidebarBox.setContent(content);
   }
 
   private renderContent() {
@@ -135,13 +212,13 @@ export class DiffTUI {
     const file = this.files[this.currentFileIndex];
     let content = '';
 
-    // File header
     const statusEmoji: { [key: string]: string } = {
-      added: '📄',
-      modified: '✏️ ',
-      deleted: '🗑️ ',
-      renamed: '➜ ',
+      added: '✚',
+      modified: '◆',
+      deleted: '✕',
+      renamed: '➜',
     };
+
     const statusText: { [key: string]: string } = {
       added: 'ADDED',
       modified: 'MODIFIED',
@@ -149,7 +226,8 @@ export class DiffTUI {
       renamed: 'RENAMED',
     };
 
-    content += `{bold}${statusEmoji[file.status]} ${statusText[file.status]} ${file.newPath || file.oldPath}{/bold}\n\n`;
+    content += `{bold}${statusEmoji[file.status]} ${statusText[file.status]}{/bold}\n`;
+    content += `{gray}${file.newPath || file.oldPath}{/gray}\n\n`;
 
     // Render hunks
     for (const hunk of file.hunks) {
@@ -186,8 +264,8 @@ export class DiffTUI {
         }
       }
 
-      // Render side-by-side
-      const colWidth = 50;
+      // Render side-by-side with better spacing
+      const colWidth = 55;
       const maxLines = Math.max(oldLines.length, newLines.length);
 
       for (let i = 0; i < maxLines; i++) {
@@ -197,7 +275,7 @@ export class DiffTUI {
         const oldFormatted = this.formatLine(oldLine, colWidth);
         const newFormatted = this.formatLine(newLine, colWidth);
 
-        content += `${oldFormatted} │ ${newFormatted}\n`;
+        content += `${oldFormatted} {gray}│{/gray} ${newFormatted}\n`;
       }
 
       content += '\n';
@@ -210,8 +288,9 @@ export class DiffTUI {
     line: { lineNum?: number; content: string; type: string },
     width: number
   ): string {
-    const lineNum = line.lineNum ? String(line.lineNum).padStart(4) : '   ';
-    const marker = line.type === 'remove' ? '−' : line.type === 'add' ? '+' : ' ';
+    const lineNum = line.lineNum ? String(line.lineNum).padStart(4) : '    ';
+    const marker =
+      line.type === 'remove' ? '{red}−{/red}' : line.type === 'add' ? '{green}+{/green}' : ' ';
 
     let colored = `${lineNum} ${marker} ${line.content}`;
 
@@ -226,28 +305,28 @@ export class DiffTUI {
     }
 
     // Truncate to width
-    if (colored.length > width) {
+    const stripped = colored.replace(/{[^}]+}/g, '');
+    if (stripped.length > width) {
       colored = colored.substring(0, width - 1) + '…';
     }
+
     return colored.padEnd(width);
   }
 
-  private renderStatusBar() {
+  private renderFooter() {
     const current = this.currentFileIndex + 1;
     const total = this.files.length;
-    const file = this.files[this.currentFileIndex];
-    const addCount = file.hunks
-      .flatMap((h) => h.lines)
-      .filter((l) => l.type === 'add').length;
-    const removeCount = file.hunks
-      .flatMap((h) => h.lines)
-      .filter((l) => l.type === 'remove').length;
 
-    let status = `File ${current}/${total} | `;
-    status += `+${addCount} -${removeCount} | `;
-    status += `[n]ext [p]rev [?]help [q]uit [j/k]scroll`;
+    let footer = '';
+    footer += '{bold}[n]{/bold}ext  ';
+    footer += '{bold}[p]{/bold}rev  ';
+    footer += '{bold}[j/k]{/bold} scroll  ';
+    footer += '{bold}[?]{/bold} help  ';
+    footer += '{bold}[q]{/bold} quit';
+    footer += '                                          ';
+    footer += `File ${current}/${total}`;
 
-    this.statusBar.setContent(status);
+    this.footerBox.setContent(footer);
   }
 
   private showHelp() {
@@ -255,38 +334,48 @@ export class DiffTUI {
       parent: this.screen,
       top: 'center',
       left: 'center',
-      width: 60,
-      height: 20,
+      width: 70,
+      height: 24,
       border: 'line',
       style: {
         border: {
-          fg: 'cyan',
+          fg: '#666',
         },
-        bg: 'black',
-        fg: 'white',
+        bg: '#ffffff',
+        fg: '#333333',
+      },
+      padding: {
+        left: 2,
+        right: 2,
+        top: 1,
+        bottom: 1,
       },
     });
 
-    const helpText = `
-Navigation:
-  n/→        Next file
-  p/←        Previous file
-  j/↓        Scroll down
-  k/↑        Scroll up
-  PgDn       Page down
-  PgUp       Page up
+    const helpText = `{bold}Keyboard Shortcuts{/bold}
 
-Controls:
-  ?/h        Show this help
-  q/Ctrl-C   Quit
-`;
+{bold}Navigation{/bold}
+  {cyan}n{/cyan}  or  {cyan}→{/cyan}      Next file
+  {cyan}p{/cyan}  or  {cyan}←{/cyan}      Previous file
+  {cyan}j{/cyan}  or  {cyan}↓{/cyan}      Scroll down
+  {cyan}k{/cyan}  or  {cyan}↑{/cyan}      Scroll up
+
+{bold}Scrolling{/bold}
+  {cyan}PageDown{/cyan}       Scroll page down
+  {cyan}PageUp{/cyan}         Scroll page up
+
+{bold}Other{/bold}
+  {cyan}?{/cyan}  or  {cyan}h{/cyan}    Show this help
+  {cyan}q{/cyan}           Quit
+
+{gray}Press any key to close{/gray}`;
 
     helpBox.setContent(helpText);
     this.screen.render();
 
     this.screen.once('key', () => {
       helpBox.destroy();
-      this.screen.render();
+      this.render();
     });
   }
 

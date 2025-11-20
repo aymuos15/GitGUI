@@ -17,6 +17,7 @@ declare module 'blessed' {
     mouse?: boolean;
     keyboard?: boolean;
     title?: string;
+    style?: any;
   }
 
   interface BoxOptions {
@@ -34,6 +35,7 @@ declare module 'blessed' {
     alwaysScroll?: boolean;
     border?: string;
     style?: any;
+    padding?: any;
   }
 
   function screen(options: ScreenOptions): Screen;
