@@ -55,6 +55,22 @@ type fileDiff struct {
 	lexer          chroma.Lexer     // Cached lexer for this file type
 	style          *chroma.Style    // Cached style
 	formatter      chroma.Formatter // Cached formatter
+	additions      int              // Number of added lines
+	deletions      int              // Number of deleted lines
+}
+
+// calculateStats computes additions and deletions for a file
+func (f *fileDiff) calculateStats() {
+	f.additions = 0
+	f.deletions = 0
+
+	for _, line := range f.content {
+		if strings.HasPrefix(line, "+") && !strings.HasPrefix(line, "+++") {
+			f.additions++
+		} else if strings.HasPrefix(line, "-") && !strings.HasPrefix(line, "---") {
+			f.deletions++
+		}
+	}
 }
 
 // initSyntaxHighlighting initializes the lexer, style, and formatter for a file
@@ -229,6 +245,7 @@ type model struct {
 	rightLineNum   int
 	pendingRemoved []string // Track consecutive removed lines for word-level diff
 	pendingAdded   []string // Track consecutive added lines for word-level diff
+	showStats      bool     // Toggle stats view with 's' key
 }
 
 func (m model) Init() tea.Cmd {
@@ -243,21 +260,26 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch msg.String() {
 		case "q", "ctrl+c", "esc":
 			return m, tea.Quit
+		case "s":
+			// Toggle stats view
+			m.showStats = !m.showStats
 		case "tab", "right", "l":
-			if m.activeTab < len(m.files)-1 {
+			if !m.showStats && m.activeTab < len(m.files)-1 {
 				m.activeTab++
 				m.updateContent()
 			}
 		case "shift+tab", "left", "h":
-			if m.activeTab > 0 {
+			if !m.showStats && m.activeTab > 0 {
 				m.activeTab--
 				m.updateContent()
 			}
 		case "1", "2", "3", "4", "5", "6", "7", "8", "9":
-			tabNum := int(msg.String()[0] - '1')
-			if tabNum < len(m.files) {
-				m.activeTab = tabNum
-				m.updateContent()
+			if !m.showStats {
+				tabNum := int(msg.String()[0] - '1')
+				if tabNum < len(m.files) {
+					m.activeTab = tabNum
+					m.updateContent()
+				}
 			}
 		}
 
@@ -509,6 +531,11 @@ func (m model) View() string {
 		return "Loading..."
 	}
 
+	// If stats view is active, show stats instead
+	if m.showStats {
+		return m.renderStatsView()
+	}
+
 	// Render tabs (only if multiple files)
 	var tabBar string
 	if len(m.files) > 1 {
@@ -572,12 +599,98 @@ func (m model) View() string {
 	content := strings.Join(combined, "\n")
 
 	// Minimal help text
-	help := helpStyle.Render("↑↓:scroll h/l:file 1-9:jump q:quit")
+	help := helpStyle.Render("↑↓:scroll h/l:file 1-9:jump s:stats q:quit")
 
 	if tabBar != "" {
 		return fmt.Sprintf("%s%s\n%s", tabBar, content, help)
 	}
 	return fmt.Sprintf("%s\n%s", content, help)
+}
+
+// renderStatsView renders the stats view (git diff --stat style)
+func (m model) renderStatsView() string {
+	var output strings.Builder
+
+	// Title
+	title := titleStyle.Render("Diff Statistics")
+	output.WriteString(lipgloss.PlaceHorizontal(m.width, lipgloss.Center, title))
+	output.WriteString("\n\n")
+
+	// Calculate totals
+	totalAdditions := 0
+	totalDeletions := 0
+	maxNameLen := 0
+
+	for _, file := range m.files {
+		totalAdditions += file.additions
+		totalDeletions += file.deletions
+		if len(file.name) > maxNameLen {
+			maxNameLen = len(file.name)
+		}
+	}
+
+	if maxNameLen > 50 {
+		maxNameLen = 50
+	}
+
+	// Render each file's stats
+	for _, file := range m.files {
+		fileName := file.name
+		if len(fileName) > 50 {
+			fileName = "..." + fileName[len(fileName)-47:]
+		}
+
+		// Format: filename | +additions -deletions | bar chart
+		additions := fmt.Sprintf("+%d", file.additions)
+		deletions := fmt.Sprintf("-%d", file.deletions)
+
+		// Create visual bar
+		totalChanges := file.additions + file.deletions
+		barWidth := 40
+		if totalChanges > 0 {
+			addBar := (file.additions * barWidth) / totalChanges
+			if addBar == 0 && file.additions > 0 {
+				addBar = 1
+			}
+			delBar := barWidth - addBar
+
+			greenBar := lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(strings.Repeat("+", addBar))
+			redBar := lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(strings.Repeat("-", delBar))
+
+			line := fmt.Sprintf(" %-50s | %s %s %s", fileName,
+				lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(additions),
+				lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(deletions),
+				greenBar+redBar)
+			output.WriteString(line)
+			output.WriteString("\n")
+		} else {
+			line := fmt.Sprintf(" %-50s | %s %s", fileName, additions, deletions)
+			output.WriteString(line)
+			output.WriteString("\n")
+		}
+	}
+
+	// Summary line
+	output.WriteString("\n")
+	fileCount := len(m.files)
+	fileWord := "file"
+	if fileCount != 1 {
+		fileWord = "files"
+	}
+
+	summary := fmt.Sprintf(" %d %s changed, %s, %s",
+		fileCount, fileWord,
+		lipgloss.NewStyle().Foreground(lipgloss.Color("10")).Render(fmt.Sprintf("%d insertions(+)", totalAdditions)),
+		lipgloss.NewStyle().Foreground(lipgloss.Color("9")).Render(fmt.Sprintf("%d deletions(-)", totalDeletions)))
+
+	output.WriteString(summary)
+	output.WriteString("\n\n")
+
+	// Help text
+	help := helpStyle.Render("Press 's' to return to diff view | q:quit")
+	output.WriteString(lipgloss.PlaceHorizontal(m.width, lipgloss.Center, help))
+
+	return output.String()
 }
 
 func parseDiffIntoFiles(lines []string) []fileDiff {
@@ -616,9 +729,10 @@ func parseDiffIntoFiles(lines []string) []fileDiff {
 		files = append(files, *currentFile)
 	}
 
-	// Initialize syntax highlighting for all files
+	// Initialize syntax highlighting and calculate stats for all files
 	for i := range files {
 		files[i].initSyntaxHighlighting()
+		files[i].calculateStats()
 	}
 
 	return files

@@ -7,9 +7,11 @@ A beautiful terminal UI for viewing git diffs, built with Charmbracelet tools.
 - 🎨 **Syntax highlighting** - Full syntax highlighting for Python, JavaScript, Go, and many more languages
 - 📊 **Side-by-side view** - Compare old and new code directly alongside each other
 - 📑 **Tabbed interface** - Easy navigation between multiple changed files
+- 📈 **Statistics view** - Press `s` to see git diff --stat style summary
 - 🔢 **Line numbers** - See exact line numbers for both versions
 - 📜 **Full scrolling** - Navigate with vim-style keybindings (j/k, arrows, page up/down)
 - 🚀 **Flexible input** - Works with `git diff`, piped input, or any diff format
+- ⚡ **High performance** - Cached syntax highlighting for smooth scrolling on large files
 - ✨ **Beautiful UI** - Built with Charmbracelet tools (Bubbles, Bubbletea, Lipgloss, Chroma)
 
 ## Installation
@@ -51,6 +53,9 @@ git show <commit> | ./diffview
 ### File Switching
 - `tab`/`h`/`l` or `←`/`→` - Switch between files
 - `1`-`9` - Jump directly to file 1-9
+
+### Views
+- `s` - Toggle statistics view (git diff --stat style)
 
 ### General
 - `q`/`esc`/`ctrl+c` - Quit
