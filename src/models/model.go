@@ -14,6 +14,18 @@ func (m Model) Init() tea.Cmd {
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmd tea.Cmd
 
+	// Handle viewport/table updates FIRST based on current view mode
+	// This allows tables to consume key events for scrolling before we process them
+	if m.ViewMode == "log" {
+		m.LogTable, cmd = m.LogTable.Update(msg)
+	} else if m.ViewMode == "stats" {
+		m.StatsTable, cmd = m.StatsTable.Update(msg)
+	} else if m.ViewMode == "diff" {
+		m.LeftViewport, cmd = m.LeftViewport.Update(msg)
+		m.RightViewport.YOffset = m.LeftViewport.YOffset
+		m.RightViewport.YPosition = m.LeftViewport.YPosition
+	}
+
 	switch msg := msg.(type) {
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -72,16 +84,6 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			m.LogViewport.Width = msg.Width
 			m.LogViewport.Height = viewportHeight
 		}
-	}
-
-	// Handle viewport updates based on current view mode
-	if m.ViewMode == "log" {
-		m.LogViewport, cmd = m.LogViewport.Update(msg)
-	} else if m.ViewMode == "diff" {
-		// Sync both diff viewports
-		m.LeftViewport, cmd = m.LeftViewport.Update(msg)
-		m.RightViewport.YOffset = m.LeftViewport.YOffset
-		m.RightViewport.YPosition = m.LeftViewport.YPosition
 	}
 
 	return m, cmd

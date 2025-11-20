@@ -5,11 +5,10 @@ import (
 	"strings"
 
 	"diffview/src/models"
-	"diffview/src/styles"
 	"diffview/src/utils"
 
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/evertras/bubble-table/table"
 )
 
 // UpdateLogContent populates the log viewport with git log data
@@ -23,14 +22,6 @@ func UpdateLogContent(m *models.Model) {
 		logLines = []string{"Error: Unable to fetch git log", "Make sure you're in a git repository"}
 	} else {
 		logLines = strings.Split(string(output), "\n")
-	}
-
-	// Define table columns
-	columns := []table.Column{
-		{Title: "Hash", Width: 10},
-		{Title: "Message", Width: 65},
-		{Title: "Time", Width: 18},
-		{Title: "Author", Width: 20},
 	}
 
 	// Build table rows by parsing git log output
@@ -71,79 +62,90 @@ func UpdateLogContent(m *models.Model) {
 		time := strings.TrimSpace(rest[timeStart+1 : strings.Index(rest[timeStart:], ")")+timeStart])
 		author := strings.TrimSpace(rest[authorStart+1 : len(rest)-1])
 
-		// Truncate if too long
-		if len(message) > 65 {
-			message = message[:62] + "..."
-		}
-		if len(author) > 20 {
-			author = author[:17] + "..."
-		}
-		if len(time) > 18 {
-			time = time[:15] + "..."
-		}
-
-		rows = append(rows, table.Row{hash, message, time, author})
+		rows = append(rows, table.NewRow(table.RowData{
+			"hash":    hash,
+			"message": message,
+			"time":    time,
+			"author":  author,
+		}))
 	}
 
-	// Create table with custom styles
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(false),
-		table.WithHeight(len(rows)),
-	)
+	// Define table columns - message gets good width
+	columns := []table.Column{
+		table.NewColumn("hash", "Hash", 10),
+		table.NewColumn("message", "Message", 65),
+		table.NewColumn("time", "Time", 18),
+		table.NewColumn("author", "Author", 20),
+	}
 
-	// Custom table styles
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(true).
-		Foreground(lipgloss.Color("240"))
+	// Create table with custom styles - fixed page size for scrolling
+	m.LogTable = table.New(columns).
+		WithRows(rows).
+		Focused(true).
+		Border(table.Border{
+			Top:            "─",
+			Left:           "│",
+			Right:          "│",
+			Bottom:         "─",
+			TopRight:       "┐",
+			TopLeft:        "┌",
+			BottomRight:    "┘",
+			BottomLeft:     "└",
+			TopJunction:    "┬",
+			LeftJunction:   "├",
+			RightJunction:  "┤",
+			BottomJunction: "┴",
+			InnerJunction:  "┼",
+			InnerDivider:   "│",
+		}).
+		HeaderStyle(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Bold(true)).
+		WithBaseStyle(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("15")).
+			Align(lipgloss.Left)).
+		WithPageSize(20).
+		WithFooterVisibility(false)
 
-	// Remove highlight from selected row
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("15")).
-		Background(lipgloss.Color("0")).
-		Bold(false)
-
-	// Cell style
-	s.Cell = s.Cell.Foreground(lipgloss.Color("15"))
-
-	t.SetStyles(s)
-
-	// Title
-	title := styles.HeaderStyle.Render("Git Log (↑↓ to scroll)")
-
-	// Build the content with table
-	var content strings.Builder
-	content.WriteString(title)
-	content.WriteString("\n\n")
-	content.WriteString(t.View())
-
-	// Set viewport content
-	m.LogViewport.SetContent(content.String())
+	// Just update the table - don't store anything in viewport
+	// The table will be rendered fresh each time with its current scroll state
 }
 
 // RenderLogView renders the log viewport
 func RenderLogView(m *models.Model) string {
-	logContent := m.LogViewport.View()
+	// Title
+	title := lipgloss.NewStyle().
+		Bold(true).
+		Foreground(lipgloss.Color("12")).
+		Render("Git Log (↑↓ to scroll)")
 
-	// Calculate padding to push help to the very bottom
-	lines := strings.Split(logContent, "\n")
-	currentHeight := len(lines)
-	totalHeight := m.Height - 1 // Reserve 1 line for help
+	// Build the content with table (table maintains its own scroll state)
+	var boxContent strings.Builder
+	boxContent.WriteString(title)
+	boxContent.WriteString("\n\n")
+	boxContent.WriteString(m.LogTable.View())
 
-	// Add empty lines if needed to fill the screen
-	if currentHeight < totalHeight {
-		padding := strings.Repeat("\n", totalHeight-currentHeight)
-		logContent += padding
-	}
+	// Create a box around the content
+	boxStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("240")).
+		Padding(2, 3).
+		Align(lipgloss.Center)
 
-	// Render help bar with tab-styled items
+	box := boxStyle.Render(boxContent.String())
+
+	// Center the box vertically and horizontally
+	centeredBox := lipgloss.Place(
+		m.Width,
+		m.Height-1, // Leave space for help at bottom
+		lipgloss.Center,
+		lipgloss.Center,
+		box,
+	)
+
+	// Render help bar with tab-styled items at the bottom left
 	helpText := "↑↓:scroll d:diff s:stats l:log q:quit"
 	help := RenderHelpBar(helpText, m.Width)
 
-	return logContent + "\n" + help
+	return centeredBox + "\n" + help
 }

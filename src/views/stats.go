@@ -6,12 +6,80 @@ import (
 
 	"diffview/src/models"
 
-	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/evertras/bubble-table/table"
 )
 
-// RenderStatsView renders the stats view with a clean modern interface using bubbles table
+// UpdateStatsContent initializes the stats table (should only be called once)
+func UpdateStatsContent(m *models.Model) {
+	// Build table rows
+	rows := []table.Row{}
+	for _, file := range m.Files {
+		rows = append(rows, table.NewRow(table.RowData{
+			"file":    file.Name,
+			"added":   file.Additions,
+			"removed": file.Deletions,
+		}))
+	}
+
+	// Define table columns - file gets fixed good width
+	columns := []table.Column{
+		table.NewColumn("file", "File", 50),
+		table.NewColumn("added", "Added", 10).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right)),
+		table.NewColumn("removed", "Removed", 10).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right)),
+	}
+
+	// Create table with custom styles - fixed page size for scrolling
+	m.StatsTable = table.New(columns).
+		WithRows(rows).
+		Focused(true).
+		Border(table.Border{
+			Top:            "─",
+			Left:           "│",
+			Right:          "│",
+			Bottom:         "─",
+			TopRight:       "┐",
+			TopLeft:        "┌",
+			BottomRight:    "┘",
+			BottomLeft:     "└",
+			TopJunction:    "┬",
+			LeftJunction:   "├",
+			RightJunction:  "┤",
+			BottomJunction: "┴",
+			InnerJunction:  "┼",
+			InnerDivider:   "│",
+		}).
+		HeaderStyle(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Bold(true)).
+		WithBaseStyle(lipgloss.NewStyle().
+			Foreground(lipgloss.Color("15")).
+			Align(lipgloss.Left)).
+		WithPageSize(15).
+		WithFooterVisibility(false)
+}
+
+// RenderStatsView renders the stats view with a clean modern interface using bubble-table
 func RenderStatsView(m *models.Model) string {
+	// If there's no diff to display, show a centered message
+	if m.NoDiffMessage != "" {
+		messageStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(m.Width)
+
+		// Center vertically
+		verticalPadding := (m.Height - 2) / 2
+		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
+
+		// Render help bar
+		helpText := "l:log q:quit"
+		help := RenderHelpBar(helpText, m.Width)
+
+		return content + "\n" + help
+	}
+
 	// Calculate totals
 	totalAdditions := 0
 	totalDeletions := 0
@@ -20,56 +88,6 @@ func RenderStatsView(m *models.Model) string {
 		totalAdditions += file.Additions
 		totalDeletions += file.Deletions
 	}
-
-	// Define table columns
-	columns := []table.Column{
-		{Title: "File", Width: 50},
-		{Title: "Added", Width: 10},
-		{Title: "Removed", Width: 10},
-	}
-
-	// Build table rows
-	rows := []table.Row{}
-	for _, file := range m.Files {
-		fileName := file.Name
-		if len(fileName) > 50 {
-			fileName = "..." + fileName[len(fileName)-47:]
-		}
-
-		rows = append(rows, table.Row{
-			fileName,
-			fmt.Sprintf("%d", file.Additions),
-			fmt.Sprintf("%d", file.Deletions),
-		})
-	}
-
-	// Create table with custom styles
-	t := table.New(
-		table.WithColumns(columns),
-		table.WithRows(rows),
-		table.WithFocused(false),
-		table.WithHeight(len(rows)),
-	)
-
-	// Custom table styles
-	s := table.DefaultStyles()
-	s.Header = s.Header.
-		BorderStyle(lipgloss.NormalBorder()).
-		BorderForeground(lipgloss.Color("240")).
-		BorderBottom(true).
-		Bold(true).
-		Foreground(lipgloss.Color("240"))
-
-	// Remove highlight from selected row - make it look the same as normal cells
-	s.Selected = s.Selected.
-		Foreground(lipgloss.Color("15")).
-		Background(lipgloss.Color("0")).
-		Bold(false)
-
-	// Cell style
-	s.Cell = s.Cell.Foreground(lipgloss.Color("15"))
-
-	t.SetStyles(s)
 
 	// Title
 	title := lipgloss.NewStyle().
@@ -82,16 +100,14 @@ func RenderStatsView(m *models.Model) string {
 	boxContent.WriteString(title)
 	boxContent.WriteString("\n\n")
 
-	tableView := t.View()
+	tableView := m.StatsTable.View()
 	boxContent.WriteString(tableView)
 	boxContent.WriteString("\n\n")
 
 	// Calculate separator width from actual table width
-	// The table adds internal spacing, so we measure the first line
 	tableLines := strings.Split(tableView, "\n")
 	var separatorWidth int
 	if len(tableLines) > 0 {
-		// Remove ANSI codes to get actual width
 		separatorWidth = lipgloss.Width(tableLines[0])
 	} else {
 		separatorWidth = 74 // fallback
@@ -100,7 +116,7 @@ func RenderStatsView(m *models.Model) string {
 	boxContent.WriteString(strings.Repeat("─", separatorWidth))
 	boxContent.WriteString("\n")
 
-	// Summary section - align with table columns
+	// Summary section
 	fileCount := len(m.Files)
 	fileWord := "file"
 	if fileCount != 1 {
@@ -111,8 +127,7 @@ func RenderStatsView(m *models.Model) string {
 		Foreground(lipgloss.Color("240")).
 		Render(fmt.Sprintf("Total: %d %s changed", fileCount, fileWord))
 
-	// Format totals to align with the Added and Removed columns
-	// Table columns: File(50) + padding + Added(10) + padding + Removed(10)
+	// Format totals
 	totalAddStr := fmt.Sprintf("%10d", totalAdditions)
 	totalDelStr := fmt.Sprintf("%10d", totalDeletions)
 

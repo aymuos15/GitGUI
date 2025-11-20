@@ -9,6 +9,7 @@ import (
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
 	"github.com/charmbracelet/bubbles/viewport"
+	"github.com/evertras/bubble-table/table"
 )
 
 type DiffLine struct {
@@ -111,7 +112,10 @@ type Model struct {
 	Height         int
 	LeftLineNum    int
 	RightLineNum   int
-	PendingRemoved []string // Track consecutive removed lines for word-level diff
-	PendingAdded   []string // Track consecutive added lines for word-level diff
-	ViewMode       string   // "diff", "stats", or "log"
+	PendingRemoved []string    // Track consecutive removed lines for word-level diff
+	PendingAdded   []string    // Track consecutive added lines for word-level diff
+	ViewMode       string      // "diff", "stats", or "log"
+	NoDiffMessage  string      // Message to display when there's no diff
+	StatsTable     table.Model // Scrollable stats table
+	LogTable       table.Model // Scrollable log table
 }

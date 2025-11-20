@@ -190,6 +190,25 @@ func RenderDiffView(m *models.Model) string {
 		return "Loading..."
 	}
 
+	// If there's no diff to display, show a centered message
+	if m.NoDiffMessage != "" {
+		messageStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(m.Width)
+
+		// Center vertically
+		verticalPadding := (m.Height - 2) / 2
+		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
+
+		// Render help bar
+		helpText := "l:log q:quit"
+		help := RenderHelpBar(helpText, m.Width)
+
+		return content + "\n" + help
+	}
+
 	// Render tabs (only if multiple files)
 	var tabBar string
 	if len(m.Files) > 1 {
