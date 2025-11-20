@@ -101,8 +101,8 @@ func UpdateLogContent(m *models.Model) {
 
 	// Define table columns - message gets good width
 	columns := []table.Column{
-		table.NewColumn("hash", "Hash", 10),
-		table.NewColumn("message", "Message", 65),
+		table.NewColumn("hash", "Hash", 8),
+		table.NewColumn("message", "Message", 67),
 		table.NewColumn("time", "Time", 18),
 		table.NewColumn("author", "Author", 20),
 	}
