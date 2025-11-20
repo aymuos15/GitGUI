@@ -30,8 +30,8 @@ func UpdateLogContent(m *models.Model) {
 		originHash = strings.TrimSpace(string(originOutput))
 	}
 
-	// Run git log command - fetch all commits
-	cmd := exec.Command("git", "log", "--graph", "--pretty=format:%Cred%h%Creset - %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit")
+	// Run git log command - fetch all commits with colored graph
+	cmd := exec.Command("git", "log", "--graph", "--color=always", "--all", "--pretty=format:%Cred%h%Creset - %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit")
 	output, err := cmd.Output()
 
 	var logLines []string
@@ -41,10 +41,30 @@ func UpdateLogContent(m *models.Model) {
 		logLines = strings.Split(string(output), "\n")
 	}
 
+	// Calculate adaptive graph column width by scanning all lines
+	graphWidth := 10 // minimum width
+	for _, line := range logLines {
+		cleanLine := utils.StripAnsi(line)
+		graphEnd := 0
+		for i, char := range cleanLine {
+			if char != '*' && char != '|' && char != '\\' && char != '/' && char != ' ' {
+				graphEnd = i
+				break
+			}
+		}
+		if graphEnd > graphWidth {
+			graphWidth = graphEnd
+		}
+	}
+	// Cap at maximum width of 30
+	if graphWidth > 30 {
+		graphWidth = 30
+	}
+
 	// Build table rows by parsing git log output
 	rows := []table.Row{}
 	for _, line := range logLines {
-		// Strip ANSI codes
+		// Strip ANSI codes for parsing, but keep original line for graph
 		cleanLine := utils.StripAnsi(line)
 
 		// Skip empty lines
@@ -52,10 +72,40 @@ func UpdateLogContent(m *models.Model) {
 			continue
 		}
 
-		// Parse format: hash - message (time) <author>
-		// Remove graph characters (* | \ /)
-		cleanLine = strings.TrimLeft(cleanLine, "*|\\ /")
-		cleanLine = strings.TrimSpace(cleanLine)
+		// Parse format: [graph] hash - message (time) <author>
+		// Extract graph characters (* | \ /) before the hash
+		graphEnd := 0
+		for i, char := range cleanLine {
+			if char != '*' && char != '|' && char != '\\' && char != '/' && char != ' ' {
+				graphEnd = i
+				break
+			}
+		}
+
+		// Extract graph with ANSI color codes preserved from original line
+		// Find the actual position in the original line (accounting for ANSI codes)
+		graphPrefix := ""
+		originalPos := 0
+		cleanPos := 0
+		for originalPos < len(line) && cleanPos < graphEnd {
+			if line[originalPos] == '\x1b' {
+				// Found ANSI escape sequence, include it in graph
+				escapeEnd := originalPos
+				for escapeEnd < len(line) && line[escapeEnd] != 'm' {
+					escapeEnd++
+				}
+				if escapeEnd < len(line) {
+					graphPrefix += line[originalPos:escapeEnd+1]
+					originalPos = escapeEnd + 1
+				}
+			} else {
+				graphPrefix += string(line[originalPos])
+				originalPos++
+				cleanPos++
+			}
+		}
+
+		cleanLine = strings.TrimSpace(cleanLine[graphEnd:])
 
 		// Split by " - " for hash and rest
 		parts := strings.SplitN(cleanLine, " - ", 2)
@@ -82,6 +132,7 @@ func UpdateLogContent(m *models.Model) {
 		// Create row with optional styling based on HEAD or origin
 		row := table.NewRow(table.RowData{
 			"hash":    hash,
+			"graph":   graphPrefix,
 			"message": message,
 			"time":    time,
 			"author":  author,
@@ -99,10 +150,11 @@ func UpdateLogContent(m *models.Model) {
 		rows = append(rows, row)
 	}
 
-	// Define table columns - message gets good width
+	// Define table columns - Hash → Graph → Message → Time → Author
 	columns := []table.Column{
 		table.NewColumn("hash", "Hash", 8),
-		table.NewColumn("message", "Message", 67),
+		table.NewColumn("graph", "Graph", graphWidth),
+		table.NewColumn("message", "Message", 57),
 		table.NewColumn("time", "Time", 18),
 		table.NewColumn("author", "Author", 20),
 	}
