@@ -8,6 +8,7 @@ A beautiful terminal UI for viewing git diffs, built with Charmbracelet tools.
 - 📊 **Side-by-side view** - Compare old and new code directly alongside each other
 - 📑 **Tabbed interface** - Easy navigation between multiple changed files
 - 📈 **Statistics view** - Press `s` to see git diff --stat style summary
+- 🎯 **Color-coded help bar** - Each keyboard shortcut displayed in distinct dark pastel colors for quick reference
 - 🔢 **Line numbers** - See exact line numbers for both versions
 - 📜 **Full scrolling** - Navigate with vim-style keybindings (j/k, arrows, page up/down)
 - 🚀 **Flexible input** - Works with `git diff`, piped input, or any diff format
@@ -73,3 +74,7 @@ Combined with diff colors:
 - 🟥 **Red background** - Removed lines
 - 🟩 **Green background** - Added lines
 - ⚪ **No background** - Unchanged context lines
+
+## UI Design
+
+The interface features a clean, color-coded help bar at the bottom where each keyboard shortcut is displayed in a distinct dark pastel color (purple, teal, brown, green, mauve) with white text, making it easy to quickly scan available commands.
