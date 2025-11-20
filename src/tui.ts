@@ -201,13 +201,15 @@ export class DiffTUI {
         renamed: '➜',
       };
 
+      const icon = statusIcon[file.status] || '◆';
+
       // Build the line - use ANSI codes directly
       let line = '';
       if (isActive) {
         line = '\x1b[7m'; // inverse
       }
       
-      line += `${statusIcon[file.status]} `;
+      line += `${icon} `;
       
       // Truncate filename to fit
       const maxLen = 12;
@@ -248,7 +250,10 @@ export class DiffTUI {
       renamed: 'RENAMED',
     };
 
-    content += `\x1b[1m${statusEmoji[file.status]} ${statusText[file.status]}\x1b[0m\n`;
+    const emoji = statusEmoji[file.status] || '◆';
+    const status = statusText[file.status] || 'CHANGED';
+
+    content += `\x1b[1m${emoji} ${status}\x1b[0m\n`;
     content += `${file.newPath || file.oldPath}\n`;
 
     // Calculate column width early
