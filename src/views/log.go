@@ -5,8 +5,8 @@ import (
 	"os/exec"
 	"strings"
 
-	"diffview/src/models"
-	"diffview/src/utils"
+	"gg/src/models"
+	"gg/src/utils"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"

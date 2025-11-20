@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"os"
 
-	"diffview/src/diff"
-	"diffview/src/io"
-	"diffview/src/models"
-	"diffview/src/views"
-	"diffview/src/watcher"
+	"gg/src/diff"
+	"gg/src/io"
+	"gg/src/models"
+	"gg/src/views"
+	"gg/src/watcher"
 
 	tea "github.com/charmbracelet/bubbletea"
 )

@@ -3,7 +3,7 @@ package diff
 import (
 	"strings"
 
-	"diffview/src/models"
+	"gg/src/models"
 )
 
 // ParseDiffIntoFiles parses git diff output into separate file diffs

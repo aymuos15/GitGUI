@@ -4,10 +4,10 @@ import (
 	"fmt"
 	"strings"
 
-	"diffview/src/highlighting"
-	"diffview/src/models"
-	"diffview/src/styles"
-	"diffview/src/utils"
+	"gg/src/highlighting"
+	"gg/src/models"
+	"gg/src/styles"
+	"gg/src/utils"
 
 	"github.com/charmbracelet/lipgloss"
 )

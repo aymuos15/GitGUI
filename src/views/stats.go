@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"strings"
 
-	"diffview/src/models"
+	"gg/src/models"
 
 	"github.com/charmbracelet/lipgloss"
 	"github.com/evertras/bubble-table/table"

@@ -1,4 +1,4 @@
-# Agent Guidelines for diffview
+# Agent Guidelines for gg
 
 ## Build & Test Commands
 - Build: `make build` or `go build -o gg`
@@ -9,7 +9,7 @@
 - Vet: `go vet ./...`
 
 ## Code Style
-- **Imports**: Standard library first, then external packages, then local packages (diffview/src/...)
+- **Imports**: Standard library first, then external packages, then local packages (gg/src/...)
 - **Formatting**: Use `go fmt` - tabs for indentation, standard Go conventions
 - **Naming**: Exported types/functions start with capital letter (e.g., `FileDiff`, `ParseDiffIntoFiles`)
 - **Comments**: Exported functions have comment starting with function name (e.g., `// CalculateStats computes additions...`)
