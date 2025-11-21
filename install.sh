@@ -46,7 +46,7 @@ case "$OS" in
 esac
 
 # Repository and version
-REPO="aymuos15/diffview"
+REPO="aymuos15/GitGUI"
 VERSION="${1:-latest}"
 INSTALL_DIR="$HOME/bin"
 
@@ -55,7 +55,7 @@ mkdir -p "$INSTALL_DIR"
 
 # Download URL
 if [ "$VERSION" = "latest" ]; then
-  DOWNLOAD_URL="https://github.com/$REPO/releases/download/latest/gg-$PLATFORM"
+  DOWNLOAD_URL="https://github.com/$REPO/releases/download/v0.1.0/gg-$PLATFORM"
 else
   DOWNLOAD_URL="https://github.com/$REPO/releases/download/$VERSION/gg-$PLATFORM"
 fi
@@ -64,7 +64,7 @@ echo "Installing gg ($PLATFORM)..."
 echo "Downloading from: $DOWNLOAD_URL"
 
 # Download binary
-if ! curl -fsSL -o "$INSTALL_DIR/gg" "$DOWNLOAD_URL"; then
+if ! curl -fsSL -L -o "$INSTALL_DIR/gg" "$DOWNLOAD_URL"; then
   echo -e "${RED}Failed to download gg${NC}"
   exit 1
 fi
