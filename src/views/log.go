@@ -20,16 +20,32 @@ func UpdateLogContent(m *models.Model) {
 	headOutput, _ := headCmd.Output()
 	headHash := strings.TrimSpace(string(headOutput))
 
-	// Get origin commit hash (try origin/master, then origin/main)
-	originCmd := exec.Command("git", "rev-parse", "--short", "origin/master")
-	originOutput, err := originCmd.Output()
-	originHash := strings.TrimSpace(string(originOutput))
+	// Get upstream branch commit hash
+	// First, try to get the upstream branch for current branch
+	upstreamCmd := exec.Command("git", "rev-parse", "--abbrev-ref", "--symbolic-full-name", "@{u}")
+	upstreamOutput, err := upstreamCmd.Output()
+	originHash := ""
 
-	if err != nil || originHash == "" {
-		// Try origin/main instead
-		originCmd = exec.Command("git", "rev-parse", "--short", "origin/main")
-		originOutput, _ = originCmd.Output()
-		originHash = strings.TrimSpace(string(originOutput))
+	if err == nil && len(upstreamOutput) > 0 {
+		// Got upstream branch name, now get its commit hash
+		upstreamBranch := strings.TrimSpace(string(upstreamOutput))
+		originCmd := exec.Command("git", "rev-parse", "--short", upstreamBranch)
+		originOutput, err := originCmd.Output()
+		if err == nil {
+			originHash = strings.TrimSpace(string(originOutput))
+		}
+	}
+
+	// Fallback: try common remote branch names if no upstream configured
+	if originHash == "" {
+		for _, remoteBranch := range []string{"origin/master", "origin/main"} {
+			originCmd := exec.Command("git", "rev-parse", "--short", remoteBranch)
+			originOutput, err := originCmd.Output()
+			if err == nil && len(originOutput) > 0 {
+				originHash = strings.TrimSpace(string(originOutput))
+				break
+			}
+		}
 	}
 
 	// Run git log command - fetch all commits with colored graph

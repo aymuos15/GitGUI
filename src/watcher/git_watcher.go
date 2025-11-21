@@ -28,6 +28,7 @@ func WatchGitChanges() tea.Cmd {
 			filepath.Join(".git", "HEAD"),
 			filepath.Join(".git", "refs", "heads"),
 			filepath.Join(".git", "refs", "remotes"),
+			filepath.Join(".git", "refs", "remotes", "origin"), // Watch origin remotes specifically
 		}
 
 		for _, path := range gitPaths {
