@@ -36,11 +36,47 @@ func UpdateContent(m *models.Model) {
 	currentFile := m.Files[m.ActiveTab]
 	content := currentFile.Content
 
-	// For untracked files, show a placeholder message
+	// For untracked files, show file content on right side (like additions)
 	if currentFile.Status == "Untracked" {
-		message := "[Untracked file - no diff available]"
-		m.LeftViewport.SetContent(message)
-		m.RightViewport.SetContent("")
+		leftColWidth := m.LeftViewport.Width
+		rightColWidth := m.RightViewport.Width
+		rightContentWidth := rightColWidth - 6 // -6 for line numbers
+
+		var rightLines []string
+		rightLineNum := 1
+
+		for lineIdx, line := range content {
+			// Apply syntax highlighting
+			highlighted := line
+			highlighted = currentFile.HighlightLine(lineIdx, line)
+
+			// Truncate if needed
+			visibleLen := len(utils.StripAnsi(highlighted))
+			if visibleLen > rightContentWidth {
+				line = line[:rightContentWidth-3] + "..."
+				highlighted = line
+				highlighted = currentFile.HighlightLine(lineIdx, line)
+			}
+
+			// Apply background color for additions
+			bgCode := "\x1b[48;2;30;61;30m" // #1e3d1e
+			resetBg := "\x1b[49m"
+
+			padding := rightContentWidth - len(utils.StripAnsi(highlighted))
+			if padding < 0 {
+				padding = 0
+			}
+
+			lineNum := fmt.Sprintf("%5d ", rightLineNum)
+			left := "      " + styles.NeutralStyle.Render(strings.Repeat(" ", leftColWidth))
+			right := styles.LineNumBgRight.Render(lineNum) + bgCode + highlighted + strings.Repeat(" ", padding) + resetBg
+
+			rightLines = append(rightLines, left+styles.DividerStyle.Render("│")+right)
+			rightLineNum++
+		}
+
+		m.LeftViewport.SetContent("")
+		m.RightViewport.SetContent(strings.Join(rightLines, "\n"))
 		return
 	}
 
