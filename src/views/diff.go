@@ -19,6 +19,14 @@ func getAutoReloadStatus(enabled bool) string {
 	return "off"
 }
 
+// getDiffTypeIndicator returns a string indicator for the diff type
+func getDiffTypeIndicator(diffType string) string {
+	if diffType == "staged" {
+		return " (staged)"
+	}
+	return ""
+}
+
 // UpdateContent updates the viewport content with the current file's diff
 func UpdateContent(m *models.Model) {
 	if len(m.Files) == 0 || m.ActiveTab >= len(m.Files) {
@@ -270,7 +278,8 @@ func RenderDiffView(m *models.Model) string {
 		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
 
 		// Render help bar
-		rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff l:log q:quit", getAutoReloadStatus(m.AutoReloadEnabled))
+		diffIndicator := getDiffTypeIndicator(m.DiffType)
+		rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
 		help := RenderHelpBarSplit("", rightHelp, m.Width)
 
 		return tabBar + content + "\n" + help
@@ -314,7 +323,8 @@ func RenderDiffView(m *models.Model) string {
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll h/←→:file 1-9:jump"
-	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", getAutoReloadStatus(m.AutoReloadEnabled))
+	diffIndicator := getDiffTypeIndicator(m.DiffType)
+	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return fmt.Sprintf("%s%s\n%s", tabBar, body, help)

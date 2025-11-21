@@ -104,6 +104,7 @@ type Model struct {
 	Height            int
 	ViewMode          string      // "diff", "stats", or "log"
 	NoDiffMessage     string      // Message to display when there's no diff
+	DiffType          string      // "working", "staged", or "none"
 	StatsTable        table.Model // Scrollable stats table
 	LogTable          table.Model // Scrollable log table
 	AutoReloadEnabled bool        // Toggle for automatic reload on git changes

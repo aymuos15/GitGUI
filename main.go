@@ -13,8 +13,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// processDiffLines processes diff lines and returns files, message, and view mode
-func processDiffLines(lines []string) ([]models.FileDiff, string, string) {
+// processDiffLines processes diff lines and returns files, message, view mode, and diff type
+func processDiffLines(lines []string, diffType string) ([]models.FileDiff, string, string, string) {
 	var files []models.FileDiff
 	var noDiffMessage string
 	var viewMode string
@@ -23,6 +23,7 @@ func processDiffLines(lines []string) ([]models.FileDiff, string, string) {
 		noDiffMessage = "No diff to display"
 		files = []models.FileDiff{} // Empty slice
 		viewMode = "log"            // Default to log view when no diff
+		diffType = "none"
 	} else {
 		files = diff.ParseDiffIntoFiles(lines)
 		if len(files) == 0 {
@@ -33,23 +34,24 @@ func processDiffLines(lines []string) ([]models.FileDiff, string, string) {
 		}
 	}
 
-	return files, noDiffMessage, viewMode
+	return files, noDiffMessage, viewMode, diffType
 }
 
 func main() {
-	lines, err := io.ReadDiff()
+	lines, diffType, err := io.ReadDiff()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
 		os.Exit(1)
 	}
 
-	files, noDiffMessage, viewMode := processDiffLines(lines)
+	files, noDiffMessage, viewMode, diffType := processDiffLines(lines, diffType)
 
 	m := models.Model{
 		Files:             files,
 		ActiveTab:         0,
 		ViewMode:          viewMode,
 		NoDiffMessage:     noDiffMessage,
+		DiffType:          diffType,
 		AutoReloadEnabled: true, // Enable auto-reload by default
 	}
 
@@ -65,26 +67,29 @@ type RefreshDataMsg struct {
 	Files         []models.FileDiff
 	NoDiffMessage string
 	ViewMode      string
+	DiffType      string
 }
 
 // refreshDiffData reads git diff and returns RefreshDataMsg
 func refreshDiffData() tea.Msg {
-	lines, err := io.ReadDiff()
+	lines, diffType, err := io.ReadDiff()
 	if err != nil {
 		// On error, return empty data
 		return RefreshDataMsg{
 			Files:         []models.FileDiff{},
 			NoDiffMessage: "Error reading diff",
 			ViewMode:      "log",
+			DiffType:      "none",
 		}
 	}
 
-	files, noDiffMessage, viewMode := processDiffLines(lines)
+	files, noDiffMessage, viewMode, diffType := processDiffLines(lines, diffType)
 
 	return RefreshDataMsg{
 		Files:         files,
 		NoDiffMessage: noDiffMessage,
 		ViewMode:      viewMode,
+		DiffType:      diffType,
 	}
 }
 
@@ -126,6 +131,7 @@ func (a *appWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update model with refreshed data
 		a.Files = msg.Files
 		a.NoDiffMessage = msg.NoDiffMessage
+		a.DiffType = msg.DiffType
 		// Don't change ViewMode - keep user in their current view
 		a.ActiveTab = 0 // Reset to first tab
 
@@ -134,10 +140,13 @@ func (a *appWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			views.UpdateContent(&a.Model)
 		}
 
-		// Always reinitialize stats and log tables with new data
-		views.UpdateStatsContent(&a.Model)
+		// Reinitialize tables with new data
+		// Only initialize stats table if there are files to display
+		if len(a.Files) > 0 {
+			views.UpdateStatsContent(&a.Model)
+			a.statsTableInit = true
+		}
 		views.UpdateLogContent(&a.Model)
-		a.statsTableInit = true
 		a.logTableInit = true
 
 		return a, nil
@@ -156,8 +165,8 @@ func (a *appWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			a.logTableInit = true
 		}
 	} else if a.ViewMode == "stats" {
-		// Only initialize stats table once
-		if !a.statsTableInit {
+		// Only initialize stats table once and only if there are files to display
+		if !a.statsTableInit && len(a.Files) > 0 {
 			views.UpdateStatsContent(&a.Model)
 			a.statsTableInit = true
 		}

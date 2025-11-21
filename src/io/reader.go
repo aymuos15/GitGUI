@@ -7,16 +7,36 @@ import (
 )
 
 // ReadDiff reads diff content by running git diff command
-func ReadDiff() ([]string, error) {
-	// Run git diff command
-	cmd := exec.Command("git", "diff")
+// Falls back to staged changes if working tree is empty
+func ReadDiff() ([]string, string, error) {
+	// Try working tree changes first
+	lines, err := runGitDiff("git", "diff")
+	if err != nil {
+		return nil, "", err
+	}
+
+	// If working tree is empty, fall back to staged changes
+	if len(lines) == 0 {
+		lines, err = runGitDiff("git", "diff", "--cached")
+		if err != nil {
+			return nil, "", err
+		}
+		return lines, "staged", nil
+	}
+
+	return lines, "working", nil
+}
+
+// runGitDiff executes a git diff command and returns the output lines
+func runGitDiff(args ...string) ([]string, error) {
+	cmd := exec.Command(args[0], args[1:]...)
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		return nil, fmt.Errorf("failed to create pipe: %w", err)
 	}
 
 	if err := cmd.Start(); err != nil {
-		return nil, fmt.Errorf("failed to run git diff: %w", err)
+		return nil, fmt.Errorf("failed to run git command: %w", err)
 	}
 
 	var lines []string
@@ -32,7 +52,7 @@ func ReadDiff() ([]string, error) {
 
 	// Wait for command to complete
 	if err := cmd.Wait(); err != nil {
-		return nil, fmt.Errorf("git diff command failed: %w", err)
+		return nil, fmt.Errorf("git command failed: %w", err)
 	}
 
 	return lines, nil

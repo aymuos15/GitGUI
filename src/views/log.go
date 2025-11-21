@@ -204,7 +204,8 @@ func RenderLogView(m *models.Model) string {
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll"
-	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log q:quit", getAutoReloadStatus(m.AutoReloadEnabled))
+	diffIndicator := getDiffTypeIndicator(m.DiffType)
+	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return centeredContent + "\n" + help
