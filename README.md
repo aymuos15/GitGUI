@@ -15,7 +15,7 @@ A simple GUI for Git in Go.
 ## Installation
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/aymuos15/diffview/main/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/aymuos15/GitGUI/master/install.sh | bash
 ```
 
 Installs to `~/bin`. Make sure `$HOME/bin` is in your PATH.
