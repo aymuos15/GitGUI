@@ -4,7 +4,7 @@ A simple GUI for Git in Go.
 
 ## Features
 
-- **Syntax highlighting** - Full syntax highlighting for Python, JavaScript, Go, and many more languages
+- **Syntax highlighting** - Full syntax highlighting for languages (yet to create tracking for this)
 - **Side-by-side view** - Compare old and new code directly alongside each other
 - **Tabbed interface** - Easy navigation between multiple changed files
 - **Statistics view** - Press `s` to see git diff --stat style summary
