@@ -22,6 +22,8 @@ func getStatusStyle(status string) lipgloss.Style {
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("11")) // Yellow
 	case "Modified":
 		return lipgloss.NewStyle().Foreground(lipgloss.Color("12")) // Blue
+	case "Untracked":
+		return lipgloss.NewStyle().Foreground(lipgloss.Color("13")) // Magenta
 	default:
 		return lipgloss.NewStyle() // Default
 	}

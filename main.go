@@ -13,25 +13,30 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-// processDiffLines processes diff lines and returns files, message, view mode, and diff type
-func processDiffLines(lines []string, diffType string) ([]models.FileDiff, string, string, string) {
+// processDiffLines processes diff lines and untracked files, returns files, message, view mode, and diff type
+func processDiffLines(lines []string, untrackedFiles []string, diffType string) ([]models.FileDiff, string, string, string) {
 	var files []models.FileDiff
 	var noDiffMessage string
 	var viewMode string
 
-	if len(lines) == 0 {
-		noDiffMessage = "No diff to display"
-		files = []models.FileDiff{} // Empty slice
-		viewMode = "log"            // Default to log view when no diff
+	// Parse tracked diff files
+	if len(lines) > 0 {
+		files = diff.ParseDiffIntoFiles(lines)
+	}
+
+	// Add untracked files
+	if len(untrackedFiles) > 0 {
+		untrackedDiffs := diff.CreateUntrackedFileDiffs(untrackedFiles)
+		files = append(files, untrackedDiffs...)
+	}
+
+	// Determine view mode and message
+	if len(files) == 0 {
+		noDiffMessage = "No changes to display"
+		viewMode = "log" // Default to log view when no diff
 		diffType = "none"
 	} else {
-		files = diff.ParseDiffIntoFiles(lines)
-		if len(files) == 0 {
-			noDiffMessage = "No files in diff"
-			viewMode = "log" // Default to log view when no files
-		} else {
-			viewMode = "diff" // Show diff view when there are files
-		}
+		viewMode = "diff" // Show diff view when there are files
 	}
 
 	return files, noDiffMessage, viewMode, diffType
@@ -44,7 +49,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	files, noDiffMessage, viewMode, diffType := processDiffLines(lines, diffType)
+	untrackedFiles, err := io.ReadUntrackedFiles()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	files, noDiffMessage, viewMode, diffType := processDiffLines(lines, untrackedFiles, diffType)
 
 	m := models.Model{
 		Files:             files,
@@ -70,7 +81,7 @@ type RefreshDataMsg struct {
 	DiffType      string
 }
 
-// refreshDiffData reads git diff and returns RefreshDataMsg
+// refreshDiffData reads git diff and untracked files, then returns RefreshDataMsg
 func refreshDiffData() tea.Msg {
 	lines, diffType, err := io.ReadDiff()
 	if err != nil {
@@ -83,7 +94,18 @@ func refreshDiffData() tea.Msg {
 		}
 	}
 
-	files, noDiffMessage, viewMode, diffType := processDiffLines(lines, diffType)
+	untrackedFiles, err := io.ReadUntrackedFiles()
+	if err != nil {
+		// On error, return empty data
+		return RefreshDataMsg{
+			Files:         []models.FileDiff{},
+			NoDiffMessage: "Error reading untracked files",
+			ViewMode:      "log",
+			DiffType:      "none",
+		}
+	}
+
+	files, noDiffMessage, viewMode, diffType := processDiffLines(lines, untrackedFiles, diffType)
 
 	return RefreshDataMsg{
 		Files:         files,

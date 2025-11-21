@@ -70,3 +70,20 @@ func detectFileStatus(file *models.FileDiff) {
 	}
 	// Keep default "Modified" status if no special status detected
 }
+
+// CreateUntrackedFileDiffs converts a list of untracked file paths to FileDiff objects
+func CreateUntrackedFileDiffs(untrackedPaths []string) []models.FileDiff {
+	var files []models.FileDiff
+
+	for _, filePath := range untrackedPaths {
+		file := models.FileDiff{
+			Name:    filePath,
+			Content: []string{}, // No diff content for untracked files
+			Status:  "Untracked",
+		}
+		file.InitSyntaxHighlighting()
+		files = append(files, file)
+	}
+
+	return files
+}

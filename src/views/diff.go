@@ -33,7 +33,16 @@ func UpdateContent(m *models.Model) {
 		return
 	}
 
-	content := m.Files[m.ActiveTab].Content
+	currentFile := m.Files[m.ActiveTab]
+	content := currentFile.Content
+
+	// For untracked files, show a placeholder message
+	if currentFile.Status == "Untracked" {
+		message := "[Untracked file - no diff available]"
+		m.LeftViewport.SetContent(message)
+		m.RightViewport.SetContent("")
+		return
+	}
 
 	// Use the actual viewport widths (set in model.go)
 	leftColWidth := m.LeftViewport.Width

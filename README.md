@@ -12,3 +12,11 @@ A simple GUI for Git in Go.
 - **Line numbers** - See exact line numbers for both versions
 - **Full scrolling** - Navigate with vim-style keybindings (j/k, arrows, page up/down)
 
+## Installation
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/aymuos15/diffview/main/install.sh | bash
+```
+
+Installs to `~/bin`. Make sure `$HOME/bin` is in your PATH.
+

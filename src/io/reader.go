@@ -57,3 +57,33 @@ func runGitDiff(args ...string) ([]string, error) {
 
 	return lines, nil
 }
+
+// ReadUntrackedFiles reads untracked files using git ls-files
+func ReadUntrackedFiles() ([]string, error) {
+	cmd := exec.Command("git", "ls-files", "--others", "--exclude-standard")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pipe: %w", err)
+	}
+
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to run git command: %w", err)
+	}
+
+	var files []string
+	scanner := bufio.NewScanner(stdout)
+
+	for scanner.Scan() {
+		files = append(files, scanner.Text())
+	}
+
+	if err := scanner.Err(); err != nil {
+		return nil, fmt.Errorf("error reading untracked files: %w", err)
+	}
+
+	if err := cmd.Wait(); err != nil {
+		return nil, fmt.Errorf("git command failed: %w", err)
+	}
+
+	return files, nil
+}
