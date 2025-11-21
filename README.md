@@ -7,7 +7,7 @@ A simple GUI for Git in Go.
 - **Syntax highlighting** - Full syntax highlighting for languages (yet to create tracking for this)
 - **Side-by-side view** - Compare old and new code directly alongside each other
 - **Tabbed interface** - Easy navigation between multiple changed files
-- **Statistics view** - Press `s` to see git diff --stat style summary
+- **Instant Reload** - All actions are monitored well with instant updates with no delay
 - **Color-coded help bar** - Each keyboard shortcut displayed in distinct dark pastel colors for quick reference
 - **Line numbers** - See exact line numbers for both versions
 - **Full scrolling** - Navigate with vim-style keybindings (j/k, arrows, page up/down)
@@ -19,6 +19,20 @@ curl -fsSL https://raw.githubusercontent.com/aymuos15/GitGUI/master/install.sh |
 ```
 
 Installs to `~/bin`. Make sure `$HOME/bin` is in your PATH.
+
+## Usage
+
+Navigate to any repository with git and run:
+
+```bash
+gg
+```
+
+### Keyboard Shortcuts
+
+- `d` - View the diff between your changes
+- `l` - View the git log and commit history
+- `s` - View statistics and status summary
 
 ## Screenshots
 
