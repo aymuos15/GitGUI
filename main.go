@@ -135,17 +135,20 @@ func (a *appWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// Update model with refreshed data
 		a.Files = msg.Files
 		a.NoDiffMessage = msg.NoDiffMessage
-		a.ViewMode = msg.ViewMode
+		// Don't change ViewMode - keep user in their current view
 		a.ActiveTab = 0 // Reset to first tab
 
-		// Reset table init flags so they reinitialize with new data
-		a.logTableInit = false
-		a.statsTableInit = false
-
-		// Update content with new data
+		// Reinitialize all views with new data
 		if a.ViewMode == "diff" {
 			views.UpdateContent(&a.Model)
 		}
+
+		// Always reinitialize stats and log tables with new data
+		views.UpdateStatsContent(&a.Model)
+		views.UpdateLogContent(&a.Model)
+		a.statsTableInit = true
+		a.logTableInit = true
+
 		return a, nil
 	}
 

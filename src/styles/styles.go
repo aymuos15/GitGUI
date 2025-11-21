@@ -7,8 +7,8 @@ import (
 
 var (
 	// Soft, subtle background colors like GitHub
-	NeutralStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))             // White for context
-	HeaderStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true) // Cyan for headers
+	NeutralStyle     = lipgloss.NewStyle().Foreground(lipgloss.Color("7"))                                                                 // White for context
+	HeaderStyle      = lipgloss.NewStyle().Foreground(lipgloss.Color("14")).Bold(true)                                                     // Cyan for headers
 	HelpItemStyle1   = lipgloss.NewStyle().Background(lipgloss.Color("#6B5B7C")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel purple
 	HelpItemStyle2   = lipgloss.NewStyle().Background(lipgloss.Color("#5B7C7C")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel teal
 	HelpItemStyle3   = lipgloss.NewStyle().Background(lipgloss.Color("#7C6B5B")).Foreground(lipgloss.Color("15")).Padding(0, 1).Bold(true) // Dark pastel brown

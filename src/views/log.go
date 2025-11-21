@@ -97,7 +97,7 @@ func UpdateLogContent(m *models.Model) {
 					escapeEnd++
 				}
 				if escapeEnd < len(line) {
-					graphPrefix += line[originalPos:escapeEnd+1]
+					graphPrefix += line[originalPos : escapeEnd+1]
 					originalPos = escapeEnd + 1
 				}
 			} else {

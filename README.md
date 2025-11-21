@@ -1,6 +1,6 @@
 # Git Gui (GG)
 
-A simple GUI for Git.
+A simple GUI for Git in Go.
 
 ## Features
 

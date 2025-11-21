@@ -3,38 +3,24 @@ package io
 import (
 	"bufio"
 	"fmt"
-	"io"
-	"os"
 	"os/exec"
 )
 
-// ReadDiff reads diff content from stdin or runs git diff
+// ReadDiff reads diff content by running git diff command
 func ReadDiff() ([]string, error) {
-	var input io.Reader
+	// Run git diff command
+	cmd := exec.Command("git", "diff")
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, fmt.Errorf("failed to create pipe: %w", err)
+	}
 
-	// Check if stdin has data
-	stat, _ := os.Stdin.Stat()
-	if (stat.Mode() & os.ModeCharDevice) == 0 {
-		// Data is being piped to stdin
-		input = os.Stdin
-	} else {
-		// No piped data, run git diff
-		cmd := exec.Command("git", "diff")
-		stdout, err := cmd.StdoutPipe()
-		if err != nil {
-			return nil, fmt.Errorf("failed to create pipe: %w", err)
-		}
-
-		if err := cmd.Start(); err != nil {
-			return nil, fmt.Errorf("failed to run git diff: %w", err)
-		}
-
-		input = stdout
-		defer cmd.Wait()
+	if err := cmd.Start(); err != nil {
+		return nil, fmt.Errorf("failed to run git diff: %w", err)
 	}
 
 	var lines []string
-	scanner := bufio.NewScanner(input)
+	scanner := bufio.NewScanner(stdout)
 
 	for scanner.Scan() {
 		lines = append(lines, scanner.Text())
@@ -42,6 +28,11 @@ func ReadDiff() ([]string, error) {
 
 	if err := scanner.Err(); err != nil {
 		return nil, fmt.Errorf("error reading diff: %w", err)
+	}
+
+	// Wait for command to complete
+	if err := cmd.Wait(); err != nil {
+		return nil, fmt.Errorf("git diff command failed: %w", err)
 	}
 
 	return lines, nil

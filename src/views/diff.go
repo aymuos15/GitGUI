@@ -31,7 +31,7 @@ func UpdateContent(m *models.Model) {
 	// Use the actual viewport widths (set in model.go)
 	leftColWidth := m.LeftViewport.Width
 	rightColWidth := m.RightViewport.Width
-	leftContentWidth := leftColWidth - 6  // -6 for line numbers ("12345 ")
+	leftContentWidth := leftColWidth - 6   // -6 for line numbers ("12345 ")
 	rightContentWidth := rightColWidth - 6 // -6 for line numbers ("12345 ")
 
 	// Calculate full width for headers (full screen width minus center divider)
