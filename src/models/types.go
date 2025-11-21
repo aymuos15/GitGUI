@@ -12,14 +12,6 @@ import (
 	"github.com/evertras/bubble-table/table"
 )
 
-type DiffLine struct {
-	LeftNum   string
-	RightNum  string
-	LeftText  string
-	RightText string
-	LineType  string // "add", "remove", "context", "header"
-}
-
 type FileDiff struct {
 	Name           string
 	Content        []string
@@ -110,8 +102,6 @@ type Model struct {
 	Ready             bool
 	Width             int
 	Height            int
-	LeftLineNum       int
-	RightLineNum      int
 	ViewMode          string      // "diff", "stats", or "log"
 	NoDiffMessage     string      // Message to display when there's no diff
 	StatsTable        table.Model // Scrollable stats table

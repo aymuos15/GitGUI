@@ -90,9 +90,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, cmd
 }
 
-// View renders the appropriate view based on the current view mode
-// This method is required by the tea.Model interface
+// View returns empty string - actual view rendering is done by appWrapper to avoid circular imports
 func (m Model) View() string {
-	// Implementation is provided by the views package to avoid circular imports
 	return ""
 }

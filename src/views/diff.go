@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"strings"
 
-	"gg/src/highlighting"
 	"gg/src/models"
 	"gg/src/styles"
 	"gg/src/utils"
@@ -38,12 +37,11 @@ func UpdateContent(m *models.Model) {
 	fullWidth := m.Width - 1
 
 	var leftLines, rightLines []string
-
-	m.LeftLineNum = 0
-	m.RightLineNum = 0
+	leftLineNum := 0
+	rightLineNum := 0
 
 	for lineIdx, line := range content {
-		left, right, isFullWidth, skip := formatLineWithWidths(m, line, leftContentWidth, rightContentWidth, fullWidth, lineIdx)
+		left, right, isFullWidth, skip := formatLineWithWidths(m, line, leftContentWidth, rightContentWidth, fullWidth, lineIdx, &leftLineNum, &rightLineNum)
 		if skip {
 			// Skip this line entirely
 			continue
@@ -63,7 +61,7 @@ func UpdateContent(m *models.Model) {
 }
 
 // formatLineWithWidths formats a single diff line for display with separate left/right widths
-func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidth int, fullWidth int, lineIdx int) (string, string, bool, bool) {
+func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidth int, fullWidth int, lineIdx int, leftLineNum, rightLineNum *int) (string, string, bool, bool) {
 	if len(line) == 0 {
 		return "", "", false, false
 	}
@@ -91,10 +89,10 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 				rightPart := strings.Split(nums, "+")[1]
 
 				if leftNum := strings.Split(strings.TrimSpace(leftPart), ","); len(leftNum) > 0 {
-					fmt.Sscanf(leftNum[0], "%d", &m.LeftLineNum)
+					fmt.Sscanf(leftNum[0], "%d", leftLineNum)
 				}
 				if rightNum := strings.Split(strings.TrimSpace(rightPart), ","); len(rightNum) > 0 {
-					fmt.Sscanf(rightNum[0], "%d", &m.RightLineNum)
+					fmt.Sscanf(rightNum[0], "%d", rightLineNum)
 				}
 			}
 		}
@@ -116,14 +114,20 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 		text := line[1:]
 
 		// Apply syntax highlighting
-		highlighted := highlighting.HighlightCode(text, fileRef, lineIdx)
+		highlighted := text
+		if fileRef != nil {
+			highlighted = fileRef.HighlightLine(lineIdx, text)
+		}
 
 		// Truncate if needed
 		visibleLen := len(utils.StripAnsi(highlighted))
 		if visibleLen > leftWidth {
 			// Truncate the original text and re-highlight
 			text = text[:leftWidth-3] + "..."
-			highlighted = highlighting.HighlightCode(text, fileRef, lineIdx)
+			highlighted = text
+			if fileRef != nil {
+				highlighted = fileRef.HighlightLine(lineIdx, text)
+			}
 		}
 
 		// Apply background color directly with ANSI codes to preserve syntax highlighting
@@ -136,13 +140,13 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 			padding = 0
 		}
 
-		lineNum := fmt.Sprintf("%5d ", m.LeftLineNum)
+		lineNum := fmt.Sprintf("%5d ", *leftLineNum)
 		left := styles.LineNumBgLeft.Render(lineNum) + bgCode + highlighted + strings.Repeat(" ", padding) + resetBg
 
 		// Right side empty with neutral background, padded to rightWidth
 		emptyStyle := styles.NeutralStyle
 		right := "      " + emptyStyle.Render(strings.Repeat(" ", rightWidth))
-		m.LeftLineNum++
+		*leftLineNum++
 		return left, right, false, false
 	}
 
@@ -151,14 +155,20 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 		text := line[1:]
 
 		// Apply syntax highlighting
-		highlighted := highlighting.HighlightCode(text, fileRef, lineIdx)
+		highlighted := text
+		if fileRef != nil {
+			highlighted = fileRef.HighlightLine(lineIdx, text)
+		}
 
 		// Truncate if needed
 		visibleLen := len(utils.StripAnsi(highlighted))
 		if visibleLen > rightWidth {
 			// Truncate the original text and re-highlight
 			text = text[:rightWidth-3] + "..."
-			highlighted = highlighting.HighlightCode(text, fileRef, lineIdx)
+			highlighted = text
+			if fileRef != nil {
+				highlighted = fileRef.HighlightLine(lineIdx, text)
+			}
 		}
 
 		// Apply background color directly with ANSI codes to preserve syntax highlighting
@@ -171,40 +181,49 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 			padding = 0
 		}
 
-		lineNum := fmt.Sprintf("%5d ", m.RightLineNum)
+		lineNum := fmt.Sprintf("%5d ", *rightLineNum)
 
 		// Left side empty with neutral background, padded to leftWidth
 		emptyStyle := styles.NeutralStyle
 		left := "      " + emptyStyle.Render(strings.Repeat(" ", leftWidth))
 		right := styles.LineNumBgRight.Render(lineNum) + bgCode + highlighted + strings.Repeat(" ", padding) + resetBg
-		m.RightLineNum++
+		*rightLineNum++
 		return left, right, false, false
 	}
 
 	// Context line - show on both sides with syntax highlighting
-	leftHighlighted := highlighting.HighlightCode(line, fileRef, lineIdx)
-	rightHighlighted := highlighting.HighlightCode(line, fileRef, lineIdx)
+	leftHighlighted := line
+	if fileRef != nil {
+		leftHighlighted = fileRef.HighlightLine(lineIdx, line)
+	}
+	rightHighlighted := leftHighlighted
 
 	// Truncate if needed for left side
 	leftVisibleLen := len(utils.StripAnsi(leftHighlighted))
 	if leftVisibleLen > leftWidth {
 		leftLine := line[:leftWidth-3] + "..."
-		leftHighlighted = highlighting.HighlightCode(leftLine, fileRef, lineIdx)
+		leftHighlighted = leftLine
+		if fileRef != nil {
+			leftHighlighted = fileRef.HighlightLine(lineIdx, leftLine)
+		}
 	}
 
 	// Truncate if needed for right side
 	rightVisibleLen := len(utils.StripAnsi(rightHighlighted))
 	if rightVisibleLen > rightWidth {
 		rightLine := line[:rightWidth-3] + "..."
-		rightHighlighted = highlighting.HighlightCode(rightLine, fileRef, lineIdx)
+		rightHighlighted = rightLine
+		if fileRef != nil {
+			rightHighlighted = fileRef.HighlightLine(lineIdx, rightLine)
+		}
 	}
 
-	leftNum := fmt.Sprintf("%5d ", m.LeftLineNum)
-	rightNum := fmt.Sprintf("%5d ", m.RightLineNum)
+	leftNum := fmt.Sprintf("%5d ", *leftLineNum)
+	rightNum := fmt.Sprintf("%5d ", *rightLineNum)
 	left := styles.LineNumStyle.Render(leftNum) + styles.NeutralStyle.Render(utils.PadRight(leftHighlighted, leftWidth))
 	right := styles.LineNumStyle.Render(rightNum) + styles.NeutralStyle.Render(utils.PadRight(rightHighlighted, rightWidth))
-	m.LeftLineNum++
-	m.RightLineNum++
+	*leftLineNum++
+	*rightLineNum++
 	return left, right, false, false
 }
 

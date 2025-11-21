@@ -9,9 +9,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-type GitChangeMsg struct {
-	ChangeType string // For future extensibility (e.g., differentiating "staged" vs "unstaged" changes)
-}
+type GitChangeMsg struct {}
 
 func WatchGitChanges() tea.Cmd {
 	return func() tea.Msg {
@@ -84,15 +82,13 @@ func WatchGitChanges() tea.Cmd {
 
 					// Return immediately on first relevant change
 					// Watcher will be restarted after refresh, providing natural debouncing
-					return GitChangeMsg{ChangeType: "git_change"}
+					return GitChangeMsg{}
 				}
 
-			case err, ok := <-watcher.Errors:
+			case _, ok := <-watcher.Errors:
 				if !ok {
 					return nil
 				}
-				// Silently ignore errors and continue watching
-				_ = err
 			}
 		}
 	}

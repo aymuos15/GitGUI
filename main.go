@@ -13,13 +13,8 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 )
 
-func main() {
-	lines, err := io.ReadDiff()
-	if err != nil {
-		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
-		os.Exit(1)
-	}
-
+// processDiffLines processes diff lines and returns files, message, and view mode
+func processDiffLines(lines []string) ([]models.FileDiff, string, string) {
 	var files []models.FileDiff
 	var noDiffMessage string
 	var viewMode string
@@ -37,6 +32,18 @@ func main() {
 			viewMode = "diff" // Show diff view when there are files
 		}
 	}
+
+	return files, noDiffMessage, viewMode
+}
+
+func main() {
+	lines, err := io.ReadDiff()
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %v\n", err)
+		os.Exit(1)
+	}
+
+	files, noDiffMessage, viewMode := processDiffLines(lines)
 
 	m := models.Model{
 		Files:             files,
@@ -72,23 +79,7 @@ func refreshDiffData() tea.Msg {
 		}
 	}
 
-	var files []models.FileDiff
-	var noDiffMessage string
-	var viewMode string
-
-	if len(lines) == 0 {
-		noDiffMessage = "No diff to display"
-		files = []models.FileDiff{}
-		viewMode = "log"
-	} else {
-		files = diff.ParseDiffIntoFiles(lines)
-		if len(files) == 0 {
-			noDiffMessage = "No files in diff"
-			viewMode = "log"
-		} else {
-			viewMode = "diff"
-		}
-	}
+	files, noDiffMessage, viewMode := processDiffLines(lines)
 
 	return RefreshDataMsg{
 		Files:         files,

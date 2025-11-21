@@ -11,5 +11,4 @@ A simple GUI for Git in Go.
 - **Color-coded help bar** - Each keyboard shortcut displayed in distinct dark pastel colors for quick reference
 - **Line numbers** - See exact line numbers for both versions
 - **Full scrolling** - Navigate with vim-style keybindings (j/k, arrows, page up/down)
-- **Flexible input** - Works with `git diff`, piped input, or any diff format
 
