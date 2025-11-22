@@ -9,7 +9,7 @@ import (
 	"github.com/fsnotify/fsnotify"
 )
 
-type GitChangeMsg struct {}
+type GitChangeMsg struct{}
 
 func WatchGitChanges() tea.Cmd {
 	return func() tea.Msg {

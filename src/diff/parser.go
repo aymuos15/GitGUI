@@ -82,11 +82,11 @@ func CreateUntrackedFileDiffs(untrackedPaths []string) []models.FileDiff {
 		content := readFileLines(filePath)
 
 		file := models.FileDiff{
-			Name:       filePath,
-			Content:    content,
-			Status:     "Untracked",
-			Additions:  len(content), // Count all lines as additions
-			Deletions:  0,
+			Name:      filePath,
+			Content:   content,
+			Status:    "Untracked",
+			Additions: len(content), // Count all lines as additions
+			Deletions: 0,
 		}
 		file.InitSyntaxHighlighting()
 		files = append(files, file)

@@ -48,8 +48,8 @@ func UpdateLogContent(m *models.Model) {
 		}
 	}
 
-	// Run git log command - fetch all commits with colored graph
-	cmd := exec.Command("git", "log", "--graph", "--color=always", "--all", "--pretty=format:%Cred%h%Creset - %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit")
+	// Run git log command - fetch all commits with colored graph and branch decorations
+	cmd := exec.Command("git", "log", "--graph", "--color=always", "--all", "--decorate=short", "--pretty=format:%Cred%h%Creset - %d %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit")
 	output, err := cmd.Output()
 
 	var logLines []string
@@ -134,6 +134,47 @@ func UpdateLogContent(m *models.Model) {
 		hash := strings.TrimSpace(parts[0])
 		rest := parts[1]
 
+		// Extract branch info from decorations like "(HEAD -> main, origin/main)"
+		// Split into local branch and origin/remote branch
+		localBranch := ""
+		originBranch := ""
+		bracketStart := strings.Index(rest, "(")
+		bracketEnd := strings.Index(rest, ")")
+		if bracketStart != -1 && bracketEnd != -1 && bracketStart < bracketEnd {
+			// Extract decoration content
+			decoration := rest[bracketStart+1 : bracketEnd]
+
+			// Only treat as branch decoration if it contains HEAD, tag, or "/" (remote branches)
+			// This avoids mistaking time format like "(2 hours ago)" as decoration
+			if strings.Contains(decoration, "HEAD") || strings.Contains(decoration, "tag:") || strings.Contains(decoration, "/") {
+				rest = strings.TrimSpace(rest[bracketEnd+1:])
+
+				// Parse branch names from decoration
+				// Format: HEAD -> branch, origin/branch, tag: ...
+				decorParts := strings.Split(decoration, ",")
+				for _, part := range decorParts {
+					part = strings.TrimSpace(part)
+					// Extract local branch name from HEAD pointer
+					if strings.HasPrefix(part, "HEAD ->") {
+						branch := strings.TrimSpace(strings.TrimPrefix(part, "HEAD ->"))
+						localBranch = branch
+					} else if !strings.HasPrefix(part, "tag:") {
+						// Check if it's a remote branch (starts with known remote prefixes)
+						isRemote := strings.HasPrefix(part, "origin/") ||
+							strings.HasPrefix(part, "upstream/") ||
+							strings.HasPrefix(part, "remote/")
+
+						if isRemote {
+							originBranch = part
+						} else {
+							// It's a local branch (could have slashes like feature/new)
+							localBranch = part
+						}
+					}
+				}
+			}
+		}
+
 		// Find message, time, and author
 		// Format: message (time) <author>
 		timeStart := strings.LastIndex(rest, "(")
@@ -151,6 +192,8 @@ func UpdateLogContent(m *models.Model) {
 		row := table.NewRow(table.RowData{
 			"hash":    hash,
 			"graph":   graphPrefix,
+			"branch":  localBranch,
+			"origin":  originBranch,
 			"message": message,
 			"time":    time,
 			"author":  author,
@@ -168,13 +211,15 @@ func UpdateLogContent(m *models.Model) {
 		rows = append(rows, row)
 	}
 
-	// Define table columns - Hash → Graph → Message → Time → Author
+	// Define table columns
+	// Order: Hash → Branch → Origin → Graph → Message → Time
 	columns := []table.Column{
-		table.NewColumn("hash", "Hash", 8),
+		table.NewColumn("hash", "Hash", 7),
+		table.NewColumn("branch", "Branch", 15),
+		table.NewColumn("origin", "Origin", 15),
 		table.NewColumn("graph", "Graph", graphWidth),
-		table.NewColumn("message", "Message", 57),
-		table.NewColumn("time", "Time", 18),
-		table.NewColumn("author", "Author", 20),
+		table.NewColumn("message", "Message", 35),
+		table.NewColumn("time", "Time", 15),
 	}
 
 	// Create table with custom styles - fixed page size for scrolling
