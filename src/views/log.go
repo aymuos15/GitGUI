@@ -213,13 +213,26 @@ func UpdateLogContent(m *models.Model) {
 
 	// Define table columns
 	// Order: Hash → Branch → Origin → Graph → Message → Time
+	// Calculate widths to fill full screen
+	availableWidth := m.Width - 7 // Reserve space for borders
+	hashWidth := 7
+	branchWidth := 15
+	originWidth := 15
+	timeWidth := 15
+	// Account for graphWidth in calculation
+	messageWidth := availableWidth - hashWidth - branchWidth - originWidth - timeWidth - graphWidth
+
+	if messageWidth < 20 {
+		messageWidth = 20
+	}
+
 	columns := []table.Column{
-		table.NewColumn("hash", "Hash", 7),
-		table.NewColumn("branch", "Branch", 15),
-		table.NewColumn("origin", "Origin", 15),
+		table.NewColumn("hash", "Hash", hashWidth),
+		table.NewColumn("branch", "Branch", branchWidth),
+		table.NewColumn("origin", "Origin", originWidth),
 		table.NewColumn("graph", "Graph", graphWidth),
-		table.NewColumn("message", "Message", 35),
-		table.NewColumn("time", "Time", 15),
+		table.NewColumn("message", "Message", messageWidth),
+		table.NewColumn("time", "Time", timeWidth),
 	}
 
 	// Create table with custom styles - fixed page size for scrolling
@@ -238,14 +251,28 @@ func UpdateLogContent(m *models.Model) {
 
 // RenderLogView renders the log viewport
 func RenderLogView(m *models.Model) string {
-	// Center the table vertically and horizontally
-	centeredContent := lipgloss.Place(
-		m.Width,
-		m.Height-1, // Leave space for help at bottom
-		lipgloss.Center,
-		lipgloss.Center,
-		m.LogTable.View(),
-	)
+	// If there's no diff to display, show a centered message
+	if m.NoDiffMessage != "" {
+		messageStyle := lipgloss.NewStyle().
+			Foreground(lipgloss.Color("240")).
+			Bold(true).
+			Align(lipgloss.Center).
+			Width(m.Width)
+
+		// Center vertically
+		verticalPadding := (m.Height - 2) / 2
+		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
+
+		// Render help bar
+		diffIndicator := getDiffTypeIndicator(m.DiffType)
+		rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
+		help := RenderHelpBarSplit("↑↓:scroll", rightHelp, m.Width)
+
+		return content + "\n" + help
+	}
+
+	// Render table and help bar
+	tableView := m.LogTable.View()
 
 	// Render help bar with left and right sections
 	leftHelp := "↑↓:scroll"
@@ -253,5 +280,29 @@ func RenderLogView(m *models.Model) string {
 	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
-	return centeredContent + "\n" + help
+	// Calculate heights
+	tableHeight := lipgloss.Height(tableView)
+	helpHeight := 1 // Help bar is always 1 line
+
+	// Calculate vertical padding to center table, then fill to bottom
+	availableHeight := m.Height - helpHeight
+	topPadding := (availableHeight - tableHeight) / 2
+	bottomPadding := availableHeight - tableHeight - topPadding
+
+	if topPadding < 0 {
+		topPadding = 0
+	}
+	if bottomPadding < 0 {
+		bottomPadding = 0
+	}
+
+	// Build output: padding + table + padding to fill screen + help at very bottom
+	var output strings.Builder
+	output.WriteString(strings.Repeat("\n", topPadding))
+	output.WriteString(tableView)
+	output.WriteString(strings.Repeat("\n", bottomPadding))
+	output.WriteString("\n")
+	output.WriteString(help)
+
+	return output.String()
 }

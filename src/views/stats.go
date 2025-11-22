@@ -40,6 +40,14 @@ func UpdateStatsContent(m *models.Model) {
 		totalDeletions += file.Deletions
 	}
 
+	// Calculate column widths to fill full screen width first
+	// Reserve space for borders and spacing (approximate: 5 chars for borders/separators)
+	availableWidth := m.Width - 5
+	statusWidth := 8
+	addedWidth := 12
+	removedWidth := 12
+	fileWidth := availableWidth - statusWidth - addedWidth - removedWidth
+
 	// Build table rows
 	rows := []table.Row{}
 	for _, file := range m.Files {
@@ -55,12 +63,12 @@ func UpdateStatsContent(m *models.Model) {
 		}))
 	}
 
-	// Add separator line before Total
+	// Add separator line before Total - use calculated widths to extend end to end
 	rows = append(rows, table.NewRow(table.RowData{
-		"file":    strings.Repeat("─", 50),
-		"status":  strings.Repeat("─", 6),
-		"added":   strings.Repeat("─", 10),
-		"removed": strings.Repeat("─", 10),
+		"file":    strings.Repeat("─", fileWidth),
+		"status":  strings.Repeat("─", statusWidth),
+		"added":   strings.Repeat("─", addedWidth),
+		"removed": strings.Repeat("─", removedWidth),
 	}))
 
 	// Add Total row at the end
@@ -78,12 +86,12 @@ func UpdateStatsContent(m *models.Model) {
 		"removed": totalDeletions,
 	}))
 
-	// Define table columns - file gets fixed good width
+	// Define table columns - dynamically sized to fill full width
 	columns := []table.Column{
-		table.NewColumn("file", "File", 50),
-		table.NewColumn("status", "Status", 6).WithStyle(lipgloss.NewStyle().Align(lipgloss.Center)),
-		table.NewColumn("added", "Added", 10).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right).Foreground(lipgloss.Color("10"))),
-		table.NewColumn("removed", "Removed", 10).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right).Foreground(lipgloss.Color("9"))),
+		table.NewColumn("file", "File", fileWidth),
+		table.NewColumn("status", "Status", statusWidth).WithStyle(lipgloss.NewStyle().Align(lipgloss.Center)),
+		table.NewColumn("added", "Added", addedWidth).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right).Foreground(lipgloss.Color("10"))),
+		table.NewColumn("removed", "Removed", removedWidth).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right).Foreground(lipgloss.Color("9"))),
 	}
 
 	// Create table with custom styles - fixed page size for scrolling
@@ -119,19 +127,37 @@ func RenderStatsView(m *models.Model) string {
 		return content + "\n" + help
 	}
 
-	// Center the table vertically and horizontally
-	centeredContent := lipgloss.Place(
-		m.Width,
-		m.Height-1, // Leave space for help at bottom
-		lipgloss.Center,
-		lipgloss.Center,
-		m.StatsTable.View(),
-	)
+	// Render table and help bar
+	tableView := m.StatsTable.View()
 
 	// Render help bar with left and right sections
 	diffIndicator := getDiffTypeIndicator(m.DiffType)
 	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
 	help := RenderHelpBarSplit("↑↓:scroll", rightHelp, m.Width)
 
-	return centeredContent + "\n" + help
+	// Calculate heights
+	tableHeight := lipgloss.Height(tableView)
+	helpHeight := 1 // Help bar is always 1 line
+
+	// Calculate vertical padding to center table, then fill to bottom
+	availableHeight := m.Height - helpHeight
+	topPadding := (availableHeight - tableHeight) / 2
+	bottomPadding := availableHeight - tableHeight - topPadding
+
+	if topPadding < 0 {
+		topPadding = 0
+	}
+	if bottomPadding < 0 {
+		bottomPadding = 0
+	}
+
+	// Build output: padding + table + padding to fill screen + help at very bottom
+	var output strings.Builder
+	output.WriteString(strings.Repeat("\n", topPadding))
+	output.WriteString(tableView)
+	output.WriteString(strings.Repeat("\n", bottomPadding))
+	output.WriteString("\n")
+	output.WriteString(help)
+
+	return output.String()
 }
