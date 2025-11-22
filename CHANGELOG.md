@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.1.2] - 2025-11-22
+
+### Fixed
+- **Fullscreen Layout for Stats and Log Views**: Tables now properly expand to fill the entire terminal width, matching the diff view behavior
+- Stats and log tables now dynamically calculate column widths to use available screen space
+- Help bar positioning is now consistent across all views (diff, stats, log)
+- Separator line in stats view now extends end-to-end across all columns
+- Tables are vertically centered with help bar fixed at the bottom
+
 ## [0.1.1] - 2025-11-22
 
 ### Added
