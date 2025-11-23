@@ -285,28 +285,8 @@ func RenderLogView(m *models.Model) string {
 		return "Initializing..."
 	}
 
-	// If there's no diff to display, show a centered message
-	if m.NoDiffMessage != "" {
-		messageStyle := lipgloss.NewStyle().
-			Foreground(lipgloss.Color("240")).
-			Bold(true).
-			Align(lipgloss.Center).
-			Width(m.Width)
-
-		// Center vertically
-		verticalPadding := (m.Height - 2) / 2
-		if verticalPadding < 0 {
-			verticalPadding = 0
-		}
-		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
-
-		// Render help bar
-		diffIndicator := getDiffTypeIndicator(m.DiffType)
-		rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
-		help := RenderHelpBarSplit("↑↓:scroll", rightHelp, m.Width)
-
-		return content + "\n" + help
-	}
+	// Note: We don't check NoDiffMessage here because logs should always be shown
+	// even when there are no current changes to diff
 
 	// Render table and help bar
 	tableView := m.LogTable.View()
