@@ -108,4 +108,5 @@ type Model struct {
 	StatsTable        table.Model // Scrollable stats table
 	LogTable          table.Model // Scrollable log table
 	AutoReloadEnabled bool        // Toggle for automatic reload on git changes
+	ViewChanged       bool        // Flag to indicate view has changed
 }

@@ -181,10 +181,11 @@ func (a *appWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	if a.ViewMode == "diff" {
 		views.UpdateContent(&a.Model)
 	} else if a.ViewMode == "log" {
-		// Only initialize log table once
-		if !a.logTableInit {
+		// Update log content when view changed or not initialized
+		if a.Model.ViewChanged || !a.logTableInit {
 			views.UpdateLogContent(&a.Model)
 			a.logTableInit = true
+			a.Model.ViewChanged = false
 		}
 	} else if a.ViewMode == "stats" {
 		// Only initialize stats table once and only if there are files to display

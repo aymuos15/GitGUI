@@ -43,7 +43,10 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 		case "l":
 			// Show log view
-			m.ViewMode = "log"
+			if m.ViewMode != "log" {
+				m.ViewMode = "log"
+				m.ViewChanged = true
+			}
 		case "d":
 			// Return to diff view
 			m.ViewMode = "diff"
