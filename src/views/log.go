@@ -15,6 +15,11 @@ import (
 
 // UpdateLogContent populates the log viewport with git log data
 func UpdateLogContent(m *models.Model) {
+	// Guard against uninitialized dimensions
+	if m.Width == 0 {
+		return
+	}
+
 	// Get HEAD commit hash
 	headCmd := exec.Command("git", "rev-parse", "--short", "HEAD")
 	headOutput, _ := headCmd.Output()
@@ -212,18 +217,41 @@ func UpdateLogContent(m *models.Model) {
 	}
 
 	// Define table columns
-	// Order: Hash → Branch → Origin → Graph → Message → Time
-	// Calculate widths to fill full screen
-	availableWidth := m.Width - 7 // Reserve space for borders
-	hashWidth := 7
-	branchWidth := 15
-	originWidth := 15
-	timeWidth := 15
-	// Account for graphWidth in calculation
-	messageWidth := availableWidth - hashWidth - branchWidth - originWidth - timeWidth - graphWidth
+	// Order: Hash → Branch → Origin → Graph → Message → Author → Time
+	// Calculate widths to fill full screen using ratios
+	availableWidth := m.Width - 8 // Reserve space for borders: 2 outer + 6 inner dividers
 
-	if messageWidth < 20 {
-		messageWidth = 20
+	// First allocate graph width, then distribute remaining space by ratios
+	remainingWidth := availableWidth - graphWidth
+
+	// Assign ratios: Hash(5%) Branch(12%) Origin(12%) Message(45%) Author(13%) Time(13%)
+	hashWidth := int(float64(remainingWidth) * 0.05)
+	branchWidth := int(float64(remainingWidth) * 0.12)
+	originWidth := int(float64(remainingWidth) * 0.12)
+	authorWidth := int(float64(remainingWidth) * 0.13)
+	timeWidth := int(float64(remainingWidth) * 0.13)
+
+	// Calculate message width as remainder to ensure we use full width
+	messageWidth := remainingWidth - hashWidth - branchWidth - originWidth - authorWidth - timeWidth
+
+	// Ensure minimum widths for readability
+	if hashWidth < 6 {
+		hashWidth = 6
+	}
+	if branchWidth < 8 {
+		branchWidth = 8
+	}
+	if originWidth < 8 {
+		originWidth = 8
+	}
+	if messageWidth < 15 {
+		messageWidth = 15
+	}
+	if authorWidth < 8 {
+		authorWidth = 8
+	}
+	if timeWidth < 10 {
+		timeWidth = 10
 	}
 
 	columns := []table.Column{
@@ -232,6 +260,7 @@ func UpdateLogContent(m *models.Model) {
 		table.NewColumn("origin", "Origin", originWidth),
 		table.NewColumn("graph", "Graph", graphWidth),
 		table.NewColumn("message", "Message", messageWidth),
+		table.NewColumn("author", "Author", authorWidth),
 		table.NewColumn("time", "Time", timeWidth),
 	}
 
@@ -251,6 +280,11 @@ func UpdateLogContent(m *models.Model) {
 
 // RenderLogView renders the log viewport
 func RenderLogView(m *models.Model) string {
+	// Guard against uninitialized dimensions
+	if m.Width == 0 || m.Height == 0 {
+		return "Initializing..."
+	}
+
 	// If there's no diff to display, show a centered message
 	if m.NoDiffMessage != "" {
 		messageStyle := lipgloss.NewStyle().
@@ -261,6 +295,9 @@ func RenderLogView(m *models.Model) string {
 
 		// Center vertically
 		verticalPadding := (m.Height - 2) / 2
+		if verticalPadding < 0 {
+			verticalPadding = 0
+		}
 		content := strings.Repeat("\n", verticalPadding) + messageStyle.Render(m.NoDiffMessage)
 
 		// Render help bar
