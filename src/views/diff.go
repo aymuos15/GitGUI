@@ -53,7 +53,12 @@ func UpdateContent(m *models.Model) {
 			// Truncate if needed
 			visibleLen := len(utils.StripAnsi(highlighted))
 			if visibleLen > rightContentWidth {
-				line = line[:rightContentWidth-3] + "..."
+				// Truncate the original line safely
+				maxLen := min(len(line), rightContentWidth-3)
+				if maxLen < 0 {
+					maxLen = 0
+				}
+				line = line[:maxLen] + "..."
 				highlighted = line
 				highlighted = currentFile.HighlightLine(lineIdx, line)
 			}
@@ -254,7 +259,11 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 	// Truncate if needed for left side
 	leftVisibleLen := len(utils.StripAnsi(leftHighlighted))
 	if leftVisibleLen > leftWidth {
-		leftLine := line[:leftWidth-3] + "..."
+		maxLen := min(len(line), leftWidth-3)
+		if maxLen < 0 {
+			maxLen = 0
+		}
+		leftLine := line[:maxLen] + "..."
 		leftHighlighted = leftLine
 		if fileRef != nil {
 			leftHighlighted = fileRef.HighlightLine(lineIdx, leftLine)
@@ -264,7 +273,11 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 	// Truncate if needed for right side
 	rightVisibleLen := len(utils.StripAnsi(rightHighlighted))
 	if rightVisibleLen > rightWidth {
-		rightLine := line[:rightWidth-3] + "..."
+		maxLen := min(len(line), rightWidth-3)
+		if maxLen < 0 {
+			maxLen = 0
+		}
+		rightLine := line[:maxLen] + "..."
 		rightHighlighted = rightLine
 		if fileRef != nil {
 			rightHighlighted = fileRef.HighlightLine(lineIdx, rightLine)
