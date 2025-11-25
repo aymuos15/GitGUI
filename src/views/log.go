@@ -140,9 +140,10 @@ func UpdateLogContent(m *models.Model) {
 		rest := parts[1]
 
 		// Extract branch info from decorations like "(HEAD -> main, origin/main)"
-		// Split into local branch and origin/remote branch
+		// Split into local branch, origin/remote branch, and tag
 		localBranch := ""
 		originBranch := ""
+		tag := ""
 		bracketStart := strings.Index(rest, "(")
 		bracketEnd := strings.Index(rest, ")")
 		if bracketStart != -1 && bracketEnd != -1 && bracketStart < bracketEnd {
@@ -163,7 +164,10 @@ func UpdateLogContent(m *models.Model) {
 					if strings.HasPrefix(part, "HEAD ->") {
 						branch := strings.TrimSpace(strings.TrimPrefix(part, "HEAD ->"))
 						localBranch = branch
-					} else if !strings.HasPrefix(part, "tag:") {
+					} else if strings.HasPrefix(part, "tag:") {
+						// Extract tag name
+						tag = strings.TrimSpace(strings.TrimPrefix(part, "tag:"))
+					} else {
 						// Check if it's a remote branch (starts with known remote prefixes)
 						isRemote := strings.HasPrefix(part, "origin/") ||
 							strings.HasPrefix(part, "upstream/") ||
@@ -192,6 +196,12 @@ func UpdateLogContent(m *models.Model) {
 		message := strings.TrimSpace(rest[:timeStart])
 		time := strings.TrimSpace(rest[timeStart+1 : strings.Index(rest[timeStart:], ")")+timeStart])
 		author := strings.TrimSpace(rest[authorStart+1 : len(rest)-1])
+
+		// If there's a tag, prepend it to the message with styling
+		if tag != "" {
+			styledTag := lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render("[" + tag + "]")
+			message = styledTag + " " + message
+		}
 
 		// Create row with optional styling based on HEAD or origin
 		row := table.NewRow(table.RowData{
