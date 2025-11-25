@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.1.3] - 2025-11-25
+
+### Added
+- **Release Tags in Log View**: Release tags (e.g., v0.1.2) are now displayed inline in the message column for tagged commits
+- **Dynamic Page Size**: Stats and log views now automatically adjust page size based on terminal height for better usability
+
+### Fixed
+- **Log View Always Shows History**: Log view now displays commit history even when there are no current diff changes
+- **Log View Updates on Switch**: Fixed issue where log content wasn't updating when switching to log view
+- **Safe String Truncation**: Fixed index out of range panics in diff view by implementing safe truncation in all code paths
+- **Robust Log View Dimensions**: Added author column with adaptive sizing and guards against uninitialized dimensions
+
 ## [0.1.2] - 2025-11-22
 
 ### Fixed
