@@ -94,14 +94,21 @@ func UpdateStatsContent(m *models.Model) {
 		table.NewColumn("removed", "Removed", removedWidth).WithStyle(lipgloss.NewStyle().Align(lipgloss.Right).Foreground(lipgloss.Color("9"))),
 	}
 
-	// Create table with custom styles - fixed page size for scrolling
+	// Calculate page size based on available height
+	// Reserve space for: header row (3 lines with borders), help bar (1 line), and padding
+	pageSize := m.Height - 5
+	if pageSize < 5 {
+		pageSize = 5 // minimum page size
+	}
+
+	// Create table with custom styles - dynamic page size based on terminal height
 	m.StatsTable = table.New(columns).
 		WithRows(rows).
 		Focused(true).
 		Border(styles.TableBorder).
 		HeaderStyle(styles.TableHeaderStyle).
 		WithBaseStyle(styles.TableBaseStyle).
-		WithPageSize(15).
+		WithPageSize(pageSize).
 		WithFooterVisibility(false)
 }
 
