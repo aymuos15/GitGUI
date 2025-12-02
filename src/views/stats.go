@@ -2,6 +2,7 @@ package views
 
 import (
 	"fmt"
+	"path/filepath"
 	"strings"
 
 	"gg/src/models"
@@ -31,15 +32,6 @@ func getStatusStyle(status string) lipgloss.Style {
 
 // UpdateStatsContent initializes the stats table (should only be called once)
 func UpdateStatsContent(m *models.Model) {
-	// Calculate totals
-	totalAdditions := 0
-	totalDeletions := 0
-
-	for _, file := range m.Files {
-		totalAdditions += file.Additions
-		totalDeletions += file.Deletions
-	}
-
 	// Calculate column widths to fill full screen width first
 	// Reserve space for borders and spacing (approximate: 5 chars for borders/separators)
 	availableWidth := m.Width - 5
@@ -48,9 +40,36 @@ func UpdateStatsContent(m *models.Model) {
 	removedWidth := 12
 	fileWidth := availableWidth - statusWidth - addedWidth - removedWidth
 
-	// Build table rows
+	// Build table rows with filtering
 	rows := []table.Row{}
+	totalAdditions := 0
+	totalDeletions := 0
+	filteredCount := 0
+
+	statusFilter := strings.ToUpper(m.StatsFilters.Status)
+	extFilter := strings.ToLower(m.StatsFilters.Extension)
+
 	for _, file := range m.Files {
+		// Apply status filter
+		if statusFilter != "" {
+			statusLetter := strings.ToUpper(string(file.Status[0]))
+			if statusLetter != statusFilter {
+				continue
+			}
+		}
+
+		// Apply extension filter
+		if extFilter != "" {
+			fileExt := strings.ToLower(filepath.Ext(file.Name))
+			// Handle filter with or without leading dot
+			if !strings.HasPrefix(extFilter, ".") {
+				extFilter = "." + extFilter
+			}
+			if fileExt != extFilter {
+				continue
+			}
+		}
+
 		// Apply color styling to status - display only first letter
 		statusLetter := string(file.Status[0])
 		styledStatus := getStatusStyle(file.Status).Render(statusLetter)
@@ -61,6 +80,10 @@ func UpdateStatsContent(m *models.Model) {
 			"added":   file.Additions,
 			"removed": file.Deletions,
 		}))
+
+		totalAdditions += file.Additions
+		totalDeletions += file.Deletions
+		filteredCount++
 	}
 
 	// Add separator line before Total - use calculated widths to extend end to end
@@ -72,12 +95,16 @@ func UpdateStatsContent(m *models.Model) {
 	}))
 
 	// Add Total row at the end
-	fileCount := len(m.Files)
 	fileWord := "file"
-	if fileCount != 1 {
+	if filteredCount != 1 {
 		fileWord = "files"
 	}
-	totalLabel := fmt.Sprintf("Total: %d %s changed", fileCount, fileWord)
+	totalLabel := fmt.Sprintf("Total: %d %s", filteredCount, fileWord)
+	if statusFilter != "" || extFilter != "" {
+		totalLabel += fmt.Sprintf(" (filtered from %d)", len(m.Files))
+	} else {
+		totalLabel += " changed"
+	}
 
 	rows = append(rows, table.NewRow(table.RowData{
 		"file":    totalLabel,
@@ -114,6 +141,11 @@ func UpdateStatsContent(m *models.Model) {
 
 // RenderStatsView renders the stats view with a clean modern interface using bubble-table
 func RenderStatsView(m *models.Model) string {
+	// If in filter mode, show filter input
+	if m.FilterMode != "" {
+		return RenderFilterInput(m, "stats")
+	}
+
 	// If there's no diff to display, show a centered message
 	if m.NoDiffMessage != "" {
 		messageStyle := lipgloss.NewStyle().
@@ -137,10 +169,17 @@ func RenderStatsView(m *models.Model) string {
 	// Render table and help bar
 	tableView := m.StatsTable.View()
 
+	// Build active filters indicator
+	filterIndicator := buildStatsFilterIndicator(m)
+
 	// Render help bar with left and right sections
+	leftHelp := "↑↓:scroll M-s:status M-e:ext ^l:clear"
 	diffIndicator := getDiffTypeIndicator(m.DiffType)
 	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
-	help := RenderHelpBarSplit("↑↓:scroll", rightHelp, m.Width)
+	if filterIndicator != "" {
+		rightHelp = filterIndicator + " " + rightHelp
+	}
+	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	// Calculate heights
 	tableHeight := lipgloss.Height(tableView)
@@ -167,4 +206,22 @@ func RenderStatsView(m *models.Model) string {
 	output.WriteString(help)
 
 	return output.String()
+}
+
+// buildStatsFilterIndicator builds a string showing active stats filters
+func buildStatsFilterIndicator(m *models.Model) string {
+	if m.StatsFilters.Status == "" && m.StatsFilters.Extension == "" {
+		return ""
+	}
+
+	var parts []string
+	if m.StatsFilters.Status != "" {
+		parts = append(parts, "status:"+m.StatsFilters.Status)
+	}
+	if m.StatsFilters.Extension != "" {
+		parts = append(parts, "ext:"+m.StatsFilters.Extension)
+	}
+
+	filterStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
+	return filterStyle.Render("[" + strings.Join(parts, " ") + "]")
 }

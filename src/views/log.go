@@ -53,8 +53,26 @@ func UpdateLogContent(m *models.Model) {
 		}
 	}
 
-	// Run git log command - fetch all commits with colored graph and branch decorations
-	cmd := exec.Command("git", "log", "--graph", "--color=always", "--all", "--decorate=short", "--pretty=format:%Cred%h%Creset - %d %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit")
+	// Build git log command with filters
+	args := []string{"log", "--graph", "--color=always", "--all", "--decorate=short",
+		"--pretty=format:%Cred%h%Creset - %d %s %Cgreen(%cr)%Creset %C(bold blue)<%an>%Creset", "--abbrev-commit"}
+
+	// Add filter arguments
+	if m.LogFilters.Author != "" {
+		args = append(args, "--author="+m.LogFilters.Author)
+	}
+	if m.LogFilters.DateFrom != "" {
+		args = append(args, "--since="+m.LogFilters.DateFrom)
+	}
+	if m.LogFilters.DateTo != "" {
+		args = append(args, "--until="+m.LogFilters.DateTo)
+	}
+	// Add path filter at the end (after --)
+	if m.LogFilters.Path != "" {
+		args = append(args, "--", m.LogFilters.Path)
+	}
+
+	cmd := exec.Command("git", args...)
 	output, err := cmd.Output()
 
 	var logLines []string
@@ -85,6 +103,9 @@ func UpdateLogContent(m *models.Model) {
 	}
 
 	// Build table rows by parsing git log output
+	// Apply client-side search filter for commit messages
+	searchQuery := strings.ToLower(m.LogFilters.Search)
+
 	rows := []table.Row{}
 	for _, line := range logLines {
 		// Strip ANSI codes for parsing, but keep original line for graph
@@ -197,6 +218,16 @@ func UpdateLogContent(m *models.Model) {
 		time := strings.TrimSpace(rest[timeStart+1 : strings.Index(rest[timeStart:], ")")+timeStart])
 		author := strings.TrimSpace(rest[authorStart+1 : len(rest)-1])
 
+		// Apply search filter - skip rows that don't match the query
+		if searchQuery != "" {
+			// Search in message, author, and hash (case-insensitive)
+			if !strings.Contains(strings.ToLower(message), searchQuery) &&
+				!strings.Contains(strings.ToLower(author), searchQuery) &&
+				!strings.Contains(strings.ToLower(hash), searchQuery) {
+				continue
+			}
+		}
+
 		// If there's a tag, prepend it to the message with styling
 		if tag != "" {
 			styledTag := lipgloss.NewStyle().Foreground(lipgloss.Color("220")).Render("[" + tag + "]")
@@ -302,16 +333,27 @@ func RenderLogView(m *models.Model) string {
 		return "Initializing..."
 	}
 
+	// If in filter mode, show filter input
+	if m.FilterMode != "" {
+		return RenderFilterInput(m, "log")
+	}
+
 	// Note: We don't check NoDiffMessage here because logs should always be shown
 	// even when there are no current changes to diff
 
 	// Render table and help bar
 	tableView := m.LogTable.View()
 
+	// Build active filters indicator
+	filterIndicator := buildLogFilterIndicator(m)
+
 	// Render help bar with left and right sections
-	leftHelp := "↑↓:scroll"
+	leftHelp := "↑↓:scroll /:search ^a:author ^p:path ^l:clear"
 	diffIndicator := getDiffTypeIndicator(m.DiffType)
 	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
+	if filterIndicator != "" {
+		rightHelp = filterIndicator + " " + rightHelp
+	}
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	// Calculate heights
@@ -339,4 +381,31 @@ func RenderLogView(m *models.Model) string {
 	output.WriteString(help)
 
 	return output.String()
+}
+
+// buildLogFilterIndicator builds a string showing active log filters
+func buildLogFilterIndicator(m *models.Model) string {
+	if !m.LogFilters.HasActiveFilters() {
+		return ""
+	}
+
+	var parts []string
+	if m.LogFilters.Author != "" {
+		parts = append(parts, "author:"+m.LogFilters.Author)
+	}
+	if m.LogFilters.Path != "" {
+		parts = append(parts, "path:"+m.LogFilters.Path)
+	}
+	if m.LogFilters.DateFrom != "" {
+		parts = append(parts, "from:"+m.LogFilters.DateFrom)
+	}
+	if m.LogFilters.DateTo != "" {
+		parts = append(parts, "to:"+m.LogFilters.DateTo)
+	}
+	if m.LogFilters.Search != "" {
+		parts = append(parts, "search:"+m.LogFilters.Search)
+	}
+
+	filterStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
+	return filterStyle.Render("[" + strings.Join(parts, " ") + "]")
 }

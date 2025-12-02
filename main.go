@@ -172,6 +172,17 @@ func (a *appWrapper) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		a.logTableInit = true
 
 		return a, nil
+
+	case models.FilterAppliedMsg:
+		// Filter was applied, refresh the relevant view
+		if a.ViewMode == "log" {
+			views.UpdateLogContent(&a.Model)
+		} else if a.ViewMode == "stats" {
+			views.UpdateStatsContent(&a.Model)
+		} else if a.ViewMode == "diff" {
+			views.UpdateContent(&a.Model)
+		}
+		return a, nil
 	}
 
 	updatedModel, cmd := a.Model.Update(msg)
