@@ -8,6 +8,7 @@ import (
 	"github.com/alecthomas/chroma/v2/formatters"
 	"github.com/alecthomas/chroma/v2/lexers"
 	"github.com/alecthomas/chroma/v2/styles"
+	"github.com/charmbracelet/bubbles/textinput"
 	"github.com/charmbracelet/bubbles/viewport"
 	"github.com/evertras/bubble-table/table"
 )
@@ -94,6 +95,12 @@ func (f *FileDiff) HighlightLine(lineIdx int, code string) string {
 	return result
 }
 
+// SearchMatch represents a match position in diff view search
+type SearchMatch struct {
+	LineIdx int // Index in the content array
+	Col     int // Column position in the line
+}
+
 type Model struct {
 	LeftViewport      viewport.Model
 	RightViewport     viewport.Model
@@ -109,4 +116,38 @@ type Model struct {
 	LogTable          table.Model // Scrollable log table
 	AutoReloadEnabled bool        // Toggle for automatic reload on git changes
 	ViewChanged       bool        // Flag to indicate view has changed
+
+	// Filter/Search state
+	FilterMode    string            // "", "author", "path", "date_from", "date_to", "search", "status", "extension"
+	FilterInput   textinput.Model   // Text input for entering filter values
+	LogFilters    LogFilterState    // Active filters for log view
+	DiffSearch    DiffSearchState   // Search state for diff view
+	StatsFilters  StatsFilterState  // Active filters for stats view
+}
+
+// LogFilterState holds active filters for the log view
+type LogFilterState struct {
+	Author   string // Filter by author name
+	Path     string // Filter by file path
+	DateFrom string // Filter from date (YYYY-MM-DD)
+	DateTo   string // Filter to date (YYYY-MM-DD)
+	Search   string // Search in commit messages
+}
+
+// HasActiveFilters returns true if any log filter is active
+func (f LogFilterState) HasActiveFilters() bool {
+	return f.Author != "" || f.Path != "" || f.DateFrom != "" || f.DateTo != "" || f.Search != ""
+}
+
+// DiffSearchState holds search state for the diff view
+type DiffSearchState struct {
+	Query        string        // Current search query
+	Matches      []SearchMatch // All match positions
+	CurrentMatch int           // Index of currently highlighted match
+}
+
+// StatsFilterState holds active filters for the stats view
+type StatsFilterState struct {
+	Status    string // Filter by status: "N", "M", "D", "R", "U" or ""
+	Extension string // Filter by file extension
 }

@@ -19,6 +19,65 @@ func getAutoReloadStatus(enabled bool) string {
 	return "off"
 }
 
+// highlightSearchMatches highlights search query matches in text
+// Returns the highlighted text and match positions
+func highlightSearchMatches(text string, query string, lineIdx int) (string, []models.SearchMatch) {
+	if query == "" {
+		return text, nil
+	}
+
+	var matches []models.SearchMatch
+	lowerText := strings.ToLower(text)
+	lowerQuery := strings.ToLower(query)
+
+	// Find all match positions
+	searchStart := 0
+	for {
+		idx := strings.Index(lowerText[searchStart:], lowerQuery)
+		if idx == -1 {
+			break
+		}
+		actualIdx := searchStart + idx
+		matches = append(matches, models.SearchMatch{LineIdx: lineIdx, Col: actualIdx})
+		searchStart = actualIdx + len(query)
+	}
+
+	if len(matches) == 0 {
+		return text, nil
+	}
+
+	// Build highlighted text
+	// Use bright yellow background for matches
+	highlightStart := "\x1b[48;2;180;140;0m\x1b[30m" // Yellow bg, black text
+	highlightEnd := "\x1b[0m"
+
+	var result strings.Builder
+	lastEnd := 0
+
+	for _, match := range matches {
+		// Add text before match
+		if match.Col > lastEnd {
+			result.WriteString(text[lastEnd:match.Col])
+		}
+		// Add highlighted match
+		matchEnd := match.Col + len(query)
+		if matchEnd > len(text) {
+			matchEnd = len(text)
+		}
+		result.WriteString(highlightStart)
+		result.WriteString(text[match.Col:matchEnd])
+		result.WriteString(highlightEnd)
+		lastEnd = matchEnd
+	}
+
+	// Add remaining text
+	if lastEnd < len(text) {
+		result.WriteString(text[lastEnd:])
+	}
+
+	return result.String(), matches
+}
+
 // getDiffTypeIndicator returns a string indicator for the diff type
 func getDiffTypeIndicator(diffType string) string {
 	if diffType == "staged" {
@@ -35,6 +94,9 @@ func UpdateContent(m *models.Model) {
 
 	currentFile := m.Files[m.ActiveTab]
 	content := currentFile.Content
+
+	// Reset search matches for this update
+	m.DiffSearch.Matches = nil
 
 	// For untracked files, show file content on right side (like additions)
 	if currentFile.Status == "Untracked" {
@@ -98,8 +160,20 @@ func UpdateContent(m *models.Model) {
 	leftLineNum := 0
 	rightLineNum := 0
 
+	// Collect search matches if there's a search query
+	searchQuery := m.DiffSearch.Query
+
 	for lineIdx, line := range content {
-		left, right, isFullWidth, skip := formatLineWithWidths(m, line, leftContentWidth, rightContentWidth, fullWidth, lineIdx, &leftLineNum, &rightLineNum)
+		// Check for search matches in this line (before stripping +/-)
+		lineContent := line
+		if len(line) > 0 && (line[0] == '+' || line[0] == '-') && !strings.HasPrefix(line, "+++") && !strings.HasPrefix(line, "---") {
+			lineContent = line[1:]
+		}
+		if searchQuery != "" && strings.Contains(strings.ToLower(lineContent), strings.ToLower(searchQuery)) {
+			m.DiffSearch.Matches = append(m.DiffSearch.Matches, models.SearchMatch{LineIdx: lineIdx, Col: 0})
+		}
+
+		left, right, isFullWidth, skip := formatLineWithWidths(m, line, leftContentWidth, rightContentWidth, fullWidth, lineIdx, &leftLineNum, &rightLineNum, searchQuery)
 		if skip {
 			// Skip this line entirely
 			continue
@@ -119,7 +193,7 @@ func UpdateContent(m *models.Model) {
 }
 
 // formatLineWithWidths formats a single diff line for display with separate left/right widths
-func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidth int, fullWidth int, lineIdx int, leftLineNum, rightLineNum *int) (string, string, bool, bool) {
+func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidth int, fullWidth int, lineIdx int, leftLineNum, rightLineNum *int, searchQuery string) (string, string, bool, bool) {
 	if len(line) == 0 {
 		return "", "", false, false
 	}
@@ -190,6 +264,13 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 			if fileRef != nil {
 				highlighted = fileRef.HighlightLine(lineIdx, text)
 			}
+			visibleLen = len(utils.StripAnsi(highlighted))
+		}
+
+		// Apply search highlighting if query matches
+		if searchQuery != "" && strings.Contains(strings.ToLower(text), strings.ToLower(searchQuery)) {
+			highlighted, _ = highlightSearchMatches(text, searchQuery, lineIdx)
+			visibleLen = len(utils.StripAnsi(highlighted))
 		}
 
 		// Apply background color directly with ANSI codes to preserve syntax highlighting
@@ -235,6 +316,13 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 			if fileRef != nil {
 				highlighted = fileRef.HighlightLine(lineIdx, text)
 			}
+			visibleLen = len(utils.StripAnsi(highlighted))
+		}
+
+		// Apply search highlighting if query matches
+		if searchQuery != "" && strings.Contains(strings.ToLower(text), strings.ToLower(searchQuery)) {
+			highlighted, _ = highlightSearchMatches(text, searchQuery, lineIdx)
+			visibleLen = len(utils.StripAnsi(highlighted))
 		}
 
 		// Apply background color directly with ANSI codes to preserve syntax highlighting
@@ -266,30 +354,42 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 
 	// Truncate if needed for left side
 	leftVisibleLen := len(utils.StripAnsi(leftHighlighted))
+	leftLineText := line
 	if leftVisibleLen > leftWidth {
 		maxLen := min(len(line), leftWidth-3)
 		if maxLen < 0 {
 			maxLen = 0
 		}
-		leftLine := line[:maxLen] + "..."
-		leftHighlighted = leftLine
+		leftLineText = line[:maxLen] + "..."
+		leftHighlighted = leftLineText
 		if fileRef != nil {
-			leftHighlighted = fileRef.HighlightLine(lineIdx, leftLine)
+			leftHighlighted = fileRef.HighlightLine(lineIdx, leftLineText)
 		}
+		leftVisibleLen = len(utils.StripAnsi(leftHighlighted))
 	}
 
 	// Truncate if needed for right side
 	rightVisibleLen := len(utils.StripAnsi(rightHighlighted))
+	rightLineText := line
 	if rightVisibleLen > rightWidth {
 		maxLen := min(len(line), rightWidth-3)
 		if maxLen < 0 {
 			maxLen = 0
 		}
-		rightLine := line[:maxLen] + "..."
-		rightHighlighted = rightLine
+		rightLineText = line[:maxLen] + "..."
+		rightHighlighted = rightLineText
 		if fileRef != nil {
-			rightHighlighted = fileRef.HighlightLine(lineIdx, rightLine)
+			rightHighlighted = fileRef.HighlightLine(lineIdx, rightLineText)
 		}
+		rightVisibleLen = len(utils.StripAnsi(rightHighlighted))
+	}
+
+	// Apply search highlighting if query matches
+	if searchQuery != "" && strings.Contains(strings.ToLower(line), strings.ToLower(searchQuery)) {
+		leftHighlighted, _ = highlightSearchMatches(leftLineText, searchQuery, lineIdx)
+		rightHighlighted, _ = highlightSearchMatches(rightLineText, searchQuery, lineIdx)
+		leftVisibleLen = len(utils.StripAnsi(leftHighlighted))
+		rightVisibleLen = len(utils.StripAnsi(rightHighlighted))
 	}
 
 	leftNum := fmt.Sprintf("%5d ", *leftLineNum)
@@ -305,6 +405,11 @@ func formatLineWithWidths(m *models.Model, line string, leftWidth int, rightWidt
 func RenderDiffView(m *models.Model) string {
 	if !m.Ready {
 		return "Loading..."
+	}
+
+	// If in filter mode, show filter input
+	if m.FilterMode != "" {
+		return RenderFilterInput(m, "diff")
 	}
 
 	// Render tabs (always show, spanning full width)
@@ -388,12 +493,90 @@ func RenderDiffView(m *models.Model) string {
 	body := strings.Join(combined, "\n")
 
 	// Render help bar with left and right sections
-	leftHelp := "↑↓:scroll h/←→:file 1-9:jump"
+	leftHelp := "↑↓:scroll h/←→:file 1-9:jump /:search"
+	if m.DiffSearch.Query != "" {
+		leftHelp = fmt.Sprintf("↑↓:scroll n/N:match(%d/%d) esc:clear", m.DiffSearch.CurrentMatch+1, len(m.DiffSearch.Matches))
+	}
 	diffIndicator := getDiffTypeIndicator(m.DiffType)
 	rightHelp := fmt.Sprintf("a:auto-reload[%s] d:diff s:stats l:log%s q:quit", getAutoReloadStatus(m.AutoReloadEnabled), diffIndicator)
+
+	// Add search indicator if active
+	if m.DiffSearch.Query != "" {
+		searchStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("214")).Bold(true)
+		rightHelp = searchStyle.Render("[search:"+m.DiffSearch.Query+"]") + " " + rightHelp
+	}
+
 	help := RenderHelpBarSplit(leftHelp, rightHelp, m.Width)
 
 	return fmt.Sprintf("%s%s\n%s", tabBar, body, help)
+}
+
+// RenderFilterInput renders the filter input overlay
+func RenderFilterInput(m *models.Model, viewType string) string {
+	// Build the filter input display
+	inputStyle := lipgloss.NewStyle().
+		Border(lipgloss.RoundedBorder()).
+		BorderForeground(lipgloss.Color("62")).
+		Padding(0, 1).
+		Width(50)
+
+	// Get filter mode label
+	var label string
+	switch m.FilterMode {
+	case "author":
+		label = "Filter by Author"
+	case "path":
+		label = "Filter by Path"
+	case "date_from":
+		label = "Filter from Date"
+	case "date_to":
+		label = "Filter to Date"
+	case "search":
+		if viewType == "log" {
+			label = "Search Commits"
+		} else {
+			label = "Search in Diff"
+		}
+	case "status":
+		label = "Filter by Status (N/M/D/R/U)"
+	case "extension":
+		label = "Filter by Extension"
+	default:
+		label = "Filter"
+	}
+
+	labelStyle := lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("86"))
+	helpStyle := lipgloss.NewStyle().Foreground(lipgloss.Color("240"))
+
+	content := labelStyle.Render(label) + "\n" + m.FilterInput.View() + "\n" + helpStyle.Render("Enter to apply, Esc to cancel")
+	box := inputStyle.Render(content)
+
+	// Center the box on screen
+	boxWidth := lipgloss.Width(box)
+	boxHeight := lipgloss.Height(box)
+
+	leftPad := (m.Width - boxWidth) / 2
+	topPad := (m.Height - boxHeight) / 2
+
+	if leftPad < 0 {
+		leftPad = 0
+	}
+	if topPad < 0 {
+		topPad = 0
+	}
+
+	// Build the output
+	var output strings.Builder
+	output.WriteString(strings.Repeat("\n", topPad))
+
+	lines := strings.Split(box, "\n")
+	for _, line := range lines {
+		output.WriteString(strings.Repeat(" ", leftPad))
+		output.WriteString(line)
+		output.WriteString("\n")
+	}
+
+	return output.String()
 }
 
 // RenderHelpBarSplit renders help items with left and right sections
